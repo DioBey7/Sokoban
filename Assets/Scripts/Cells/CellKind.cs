@@ -1,4 +1,4 @@
-public enum CellKind // tüm objeleri tutan enum. Tip belirleme için dynamic ve static objelerde kullanılıyor.
+public enum CellKind // tÃ¼m objeleri tutan enum. Tip belirleme iÃ§in dynamic ve static objelerde kullandim.
 {
     Player,
     Wall,

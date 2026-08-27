@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "745793313877",
+    "project_id": "sokoban-d8cc0",
+    "storage_bucket": "sokoban-d8cc0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:745793313877:android:7839a5684dd1882a8c08dc",
+        "android_client_info": {
+          "package_name": "com.TEG.Sokoban3D"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCLomp_9pLZnaVmJUbPSNwQpaFoRCG2J8A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

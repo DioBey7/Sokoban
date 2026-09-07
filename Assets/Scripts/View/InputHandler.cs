@@ -1,49 +1,55 @@
+using System;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
-public class InputHandler : MonoBehaviour, IPointerDownHandler, IDragHandler, IPointerUpHandler
+public class InputHandler : MonoBehaviour
 {
-    [SerializeField] private GameView gameView;
-    [SerializeField] private float swipeThreshold = 50f;
+    public static InputHandler Instance { get; private set; }
 
-    private Vector2 startTouchPosition;
-    private bool isSwiping = false;
-    private bool hasMovedInCurrentSwipe = false;
+    public event Action<Vector2Int> OnMoveInput;
 
-    public void OnPointerDown(PointerEventData eventData)
+    [HideInInspector] public bool IsInputLocked = false;
+
+    [SerializeField] private float swipeThreshold = 40f;
+    private Vector2 swipeStartPos;
+
+    private void Awake()
     {
-        startTouchPosition = eventData.position;
-        isSwiping = true;
-        hasMovedInCurrentSwipe = false;
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+        Instance = this;
     }
 
-    public void OnDrag(PointerEventData eventData)
+    public void OnSwipeBegin(BaseEventData eventData)
     {
-        if (!isSwiping || gameView == null || gameView.IsAnimating || hasMovedInCurrentSwipe) return;
-
-        Vector2 swipeDelta = eventData.position - startTouchPosition;
-
-        if (swipeDelta.magnitude > swipeThreshold)
+        if (eventData is PointerEventData pointerData)
         {
-            Vector2Int dir = Vector2Int.zero;
-
-            if (Mathf.Abs(swipeDelta.x) > Mathf.Abs(swipeDelta.y))
-            {
-                dir = swipeDelta.x > 0 ? Vector2Int.right : Vector2Int.left;
-            }
-            else
-            {
-                dir = swipeDelta.y > 0 ? Vector2Int.down : Vector2Int.up;
-            }
-
-            gameView.HandleMove(dir);
-            hasMovedInCurrentSwipe = true;
+            swipeStartPos = pointerData.position;
         }
     }
 
-    public void OnPointerUp(PointerEventData eventData)
+    public void OnSwipeEnd(BaseEventData eventData)
     {
-        isSwiping = false;
-        hasMovedInCurrentSwipe = false;
+        if (IsInputLocked) return;
+
+        if (eventData is PointerEventData pointerData)
+        {
+            Vector2 swipeDelta = pointerData.position - swipeStartPos;
+
+            if (swipeDelta.magnitude > swipeThreshold)
+            {
+                if (Mathf.Abs(swipeDelta.x) > Mathf.Abs(swipeDelta.y))
+                {
+                    OnMoveInput?.Invoke(swipeDelta.x > 0 ? Vector2Int.right : Vector2Int.left);
+                }
+                else
+                {
+                    OnMoveInput?.Invoke(swipeDelta.y > 0 ? Vector2Int.down : Vector2Int.up);
+                }
+            }
+        }
     }
 }

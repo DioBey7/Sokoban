@@ -7,6 +7,8 @@ using UnityEngine.UI;
 using UnityEditor;
 #endif
 
+public enum EditorBrushType { Player, Wall, Box, FragileBox, Goal, Ice, Switch, Door }
+
 public class RuntimeLevelEditor : MonoBehaviour
 {
     public static RuntimeLevelEditor Instance { get; private set; }
@@ -16,17 +18,22 @@ public class RuntimeLevelEditor : MonoBehaviour
     [SerializeField] private GameObject goalPrefab;
     [SerializeField] private GameObject boxPrefab;
     [SerializeField] private GameObject playerPrefab;
+    [SerializeField] private GameObject icePrefab;
+    [SerializeField] private GameObject fragileBoxPrefab;
+    [SerializeField] private GameObject switchPrefab;
+    [SerializeField] private GameObject doorPrefab;
 
     [SerializeField] private Transform editorRoot;
     [SerializeField] private GameObject editorUIPanel;
     [SerializeField] private TextMeshProUGUI statusText;
     [SerializeField] private GameObject swipeZone;
 
-    private CellKind currentBrush = CellKind.Wall;
+    private EditorBrushType currentBrush = EditorBrushType.Wall;
     private bool isEraserMode = false;
     private Camera mainCam;
     private Coroutine editorRoutine;
     private List<GameObject> userDrawnObjects = new List<GameObject>();
+    private const float CELL_SIZE = 100f; 
 
     private void Awake()
     {
@@ -40,7 +47,6 @@ public class RuntimeLevelEditor : MonoBehaviour
     {
         IsEditorActive = !IsEditorActive;
         if (editorUIPanel != null) editorUIPanel.SetActive(IsEditorActive);
-
         if (swipeZone != null) swipeZone.SetActive(!IsEditorActive);
 
         UpdateStatusText();
@@ -48,7 +54,6 @@ public class RuntimeLevelEditor : MonoBehaviour
         if (IsEditorActive)
         {
             if (editorRoutine == null) editorRoutine = StartCoroutine(EditorRoutine());
-            if (AnalyticsManager.Instance != null) AnalyticsManager.Instance.LogAction("editor_opened");
         }
         else
         {
@@ -56,11 +61,6 @@ public class RuntimeLevelEditor : MonoBehaviour
             {
                 StopCoroutine(editorRoutine);
                 editorRoutine = null;
-            }
-
-            if (LevelManager.Instance != null && editorRoot != null)
-            {
-                LevelManager.Instance.ReloadFromEditor(editorRoot);
             }
         }
     }
@@ -83,7 +83,7 @@ public class RuntimeLevelEditor : MonoBehaviour
         else
         {
             isEraserMode = false;
-            currentBrush = (CellKind)kindIndex;
+            currentBrush = (EditorBrushType)kindIndex;
         }
         UpdateStatusText();
     }
@@ -92,41 +92,27 @@ public class RuntimeLevelEditor : MonoBehaviour
     {
         foreach (var obj in userDrawnObjects)
         {
-            if (obj != null)
-            {
-                obj.SetActive(false);
-                Destroy(obj);
-            }
+            if (obj != null) Destroy(obj);
         }
         userDrawnObjects.Clear();
-
-        if (AnalyticsManager.Instance != null) AnalyticsManager.Instance.LogAction("editor_level_cleared");
     }
 
     private void UpdateStatusText()
     {
         if (statusText != null)
         {
-            statusText.text = isEraserMode ? "Brush: ERASER" : $"Brush: {currentBrush.ToString()}";
+            statusText.text = isEraserMode ? "Brush: Eraser" : $"Brush: {currentBrush.ToString()}";
         }
     }
 
     private bool IsPointerOverEditorUI()
     {
         if (EventSystem.current == null) return false;
-
         PointerEventData eventData = new PointerEventData(EventSystem.current);
         eventData.position = Input.touchCount > 0 ? Input.GetTouch(0).position : (Vector2)Input.mousePosition;
-
         List<RaycastResult> results = new List<RaycastResult>();
         EventSystem.current.RaycastAll(eventData, results);
-
-        foreach (RaycastResult result in results)
-        {
-            if (editorUIPanel != null && result.gameObject.transform.IsChildOf(editorUIPanel.transform)) return true;
-            if (result.gameObject.GetComponent<Button>() != null) return true;
-        }
-        return false;
+        return results.Count > 0;
     }
 
     private void HandleMouseInput()
@@ -142,14 +128,11 @@ public class RuntimeLevelEditor : MonoBehaviour
 
     private Vector2Int GetGridPositionFromMouse()
     {
-        Canvas canvas = editorRoot.GetComponentInParent<Canvas>();
-        Camera cam = (canvas != null && canvas.renderMode == RenderMode.ScreenSpaceOverlay) ? null : mainCam;
-
         Vector2 inputPos = Input.touchCount > 0 ? Input.GetTouch(0).position : (Vector2)Input.mousePosition;
-        RectTransformUtility.ScreenPointToLocalPointInRectangle(editorRoot as RectTransform, inputPos, cam, out Vector2 localPoint);
+        RectTransformUtility.ScreenPointToLocalPointInRectangle(editorRoot as RectTransform, inputPos, null, out Vector2 localPoint);
 
-        int col = Mathf.RoundToInt(localPoint.x / GridGeometry.CELL_SIZE);
-        int row = Mathf.RoundToInt(localPoint.y / GridGeometry.CELL_SIZE);
+        int col = Mathf.RoundToInt(localPoint.x / CELL_SIZE);
+        int row = Mathf.RoundToInt(localPoint.y / CELL_SIZE);
         return new Vector2Int(col, row);
     }
 
@@ -157,94 +140,54 @@ public class RuntimeLevelEditor : MonoBehaviour
     {
         if (editorRoot == null) return;
         Vector2Int gridPos = GetGridPositionFromMouse();
-        GridObject[] allObjects = editorRoot.GetComponentsInChildren<GridObject>();
+        GridObject[] allObjects = editorRoot.GetComponentsInChildren<GridObject>(true);
 
-        if (currentBrush == CellKind.Player)
-        {
-            foreach (var obj in allObjects)
-            {
-                if (obj == null) continue;
-
-                if (obj.kind == CellKind.Player)
-                {
-                    obj.gameObject.SetActive(false);
-                    Destroy(obj.gameObject);
-                }
-            }
-        }
-
-        bool isPlacingDynamic = (currentBrush == CellKind.Player || currentBrush == CellKind.Box);
+        GameObject prefab = GetPrefabForBrush();
+        if (prefab == null) return;
 
         foreach (var obj in allObjects)
         {
-            if (obj == null || !obj.gameObject.activeSelf) continue;
+            if (obj == null || !obj.gameObject.activeInHierarchy) continue;
+            RectTransform objRect = obj.GetComponent<RectTransform>();
+            if (objRect == null) continue;
 
-            Vector3 localPos = editorRoot.InverseTransformPoint(obj.transform.position);
-            int col = Mathf.RoundToInt(localPos.x / GridGeometry.CELL_SIZE);
-            int row = Mathf.RoundToInt(localPos.y / GridGeometry.CELL_SIZE);
+            int col = Mathf.RoundToInt(objRect.anchoredPosition.x / CELL_SIZE);
+            int row = Mathf.RoundToInt(objRect.anchoredPosition.y / CELL_SIZE);
 
             if (col == gridPos.x && row == gridPos.y)
             {
-                if (obj.kind == currentBrush) return;
-
-                if (isPlacingDynamic && obj.kind == CellKind.Goal) continue;
-
-                obj.gameObject.SetActive(false);
                 Destroy(obj.gameObject);
             }
         }
 
-        GameObject prefab = GetPrefabForBrush();
-        if (prefab != null)
+        GameObject newObj = Instantiate(prefab, editorRoot);
+        RectTransform rect = newObj.GetComponent<RectTransform>();
+        if (rect != null)
         {
-            GameObject newObj = Instantiate(prefab, editorRoot);
-            RectTransform rect = newObj.GetComponent<RectTransform>();
-            if (rect != null)
-            {
-                rect.anchoredPosition = new Vector2(gridPos.x * GridGeometry.CELL_SIZE, gridPos.y * GridGeometry.CELL_SIZE);
-            }
-            userDrawnObjects.Add(newObj);
-
-            if (AnalyticsManager.Instance != null)
-            {
-                AnalyticsManager.Instance.LogActionWithParam("obstacle_placed", "type", currentBrush.ToString().ToLower());
-            }
+            rect.anchoredPosition = new Vector2(gridPos.x * CELL_SIZE, gridPos.y * CELL_SIZE);
         }
+        userDrawnObjects.Add(newObj);
     }
 
     private void RemoveObject()
     {
         if (editorRoot == null) return;
         Vector2Int gridPos = GetGridPositionFromMouse();
-        GridObject[] allObjects = editorRoot.GetComponentsInChildren<GridObject>();
+        Transform[] allTransforms = editorRoot.GetComponentsInChildren<Transform>(true);
 
-        GridObject objectToDelete = null;
-
-        foreach (var obj in allObjects)
+        foreach (var t in allTransforms)
         {
-            if (obj == null || !obj.gameObject.activeSelf) continue;
+            if (t == null || t == editorRoot || !t.gameObject.activeInHierarchy) continue;
+            RectTransform objRect = t.GetComponent<RectTransform>();
+            if (objRect == null) continue;
 
-            Vector3 localPos = editorRoot.InverseTransformPoint(obj.transform.position);
-            int col = Mathf.RoundToInt(localPos.x / GridGeometry.CELL_SIZE);
-            int row = Mathf.RoundToInt(localPos.y / GridGeometry.CELL_SIZE);
+            int col = Mathf.RoundToInt(objRect.anchoredPosition.x / CELL_SIZE);
+            int row = Mathf.RoundToInt(objRect.anchoredPosition.y / CELL_SIZE);
 
             if (col == gridPos.x && row == gridPos.y)
             {
-                if (obj.kind == CellKind.Player || obj.kind == CellKind.Box)
-                {
-                    objectToDelete = obj;
-                    break;
-                }
-                objectToDelete = obj;
+                Destroy(t.gameObject);
             }
-        }
-
-        if (objectToDelete != null)
-        {
-            objectToDelete.gameObject.SetActive(false);
-            Destroy(objectToDelete.gameObject);
-
-            if (AnalyticsManager.Instance != null) AnalyticsManager.Instance.LogAction("object_removed");
         }
     }
 
@@ -252,10 +195,14 @@ public class RuntimeLevelEditor : MonoBehaviour
     {
         switch (currentBrush)
         {
-            case CellKind.Player: return playerPrefab;
-            case CellKind.Wall: return wallPrefab;
-            case CellKind.Box: return boxPrefab;
-            case CellKind.Goal: return goalPrefab;
+            case EditorBrushType.Player: return playerPrefab;
+            case EditorBrushType.Wall: return wallPrefab;
+            case EditorBrushType.Box: return boxPrefab;
+            case EditorBrushType.FragileBox: return fragileBoxPrefab;
+            case EditorBrushType.Goal: return goalPrefab;
+            case EditorBrushType.Ice: return icePrefab;
+            case EditorBrushType.Switch: return switchPrefab;
+            case EditorBrushType.Door: return doorPrefab;
             default: return null;
         }
     }
@@ -265,27 +212,23 @@ public class RuntimeLevelEditor : MonoBehaviour
 #if UNITY_EDITOR
         if (editorRoot == null || editorRoot.childCount == 0) return;
 
-        string defaultDir = "Assets/Prefabs/Resources/Levels";
-        string path = EditorUtility.SaveFilePanelInProject("Save Custom Level", "NewCustomLevel", "prefab", "Choose folder to save level prefab.", defaultDir);
+        string path = EditorUtility.SaveFilePanelInProject("Save Custom Level", "Level_XX", "prefab", "Choose folder", "Assets/Prefabs/Resources/Levels");
         if (string.IsNullOrEmpty(path)) return;
 
         GameObject tempRoot = new GameObject("CustomLevelRoot");
-        tempRoot.AddComponent<LevelRoot>();
-
         GameObject staticRoot = new GameObject("Static");
         GameObject dynamicRoot = new GameObject("Dynamic");
+
         staticRoot.transform.SetParent(tempRoot.transform);
         dynamicRoot.transform.SetParent(tempRoot.transform);
 
-        GridObject[] allObjects = editorRoot.GetComponentsInChildren<GridObject>();
+        GridObject[] allObjects = editorRoot.GetComponentsInChildren<GridObject>(true);
 
         foreach (var gridObj in allObjects)
         {
-            if (gridObj == null) continue;
+            if (gridObj == null || !gridObj.gameObject.activeInHierarchy) continue;
 
-            CellKind kind = gridObj.kind;
-            Transform parent = (kind == CellKind.Wall || kind == CellKind.Goal) ? staticRoot.transform : dynamicRoot.transform;
-
+            Transform parent = (gridObj.category == ObjectCategory.StaticEnvironment) ? staticRoot.transform : dynamicRoot.transform;
             GameObject clone = Instantiate(gridObj.gameObject, parent);
             clone.name = clone.name.Replace("(Clone)", "");
 
@@ -294,15 +237,24 @@ public class RuntimeLevelEditor : MonoBehaviour
             if (originalRect != null && cloneRect != null)
             {
                 cloneRect.anchoredPosition = originalRect.anchoredPosition;
-                cloneRect.sizeDelta = originalRect.sizeDelta;
+            }
+        }
+
+        foreach (Transform child in editorRoot)
+        {
+            if (child.CompareTag("Player") || child.name.Contains("Player"))
+            {
+                GameObject pClone = Instantiate(child.gameObject, dynamicRoot.transform);
+                pClone.name = "Player";
+                RectTransform originalRect = child.GetComponent<RectTransform>();
+                RectTransform cloneRect = pClone.GetComponent<RectTransform>();
+                if (originalRect != null && cloneRect != null) cloneRect.anchoredPosition = originalRect.anchoredPosition;
             }
         }
 
         PrefabUtility.SaveAsPrefabAsset(tempRoot, path);
         if (Application.isPlaying) Destroy(tempRoot);
         else DestroyImmediate(tempRoot);
-
-        if (AnalyticsManager.Instance != null) AnalyticsManager.Instance.LogAction("editor_level_saved");
 #endif
     }
 }

@@ -3,6 +3,7 @@ using UnityEngine;
 [ExecuteAlways]
 public class SnapToGrid : MonoBehaviour
 {
+#if UNITY_EDITOR
     private void Update()
     {
         if (Application.isPlaying) return;
@@ -19,4 +20,5 @@ public class SnapToGrid : MonoBehaviour
             }
         }
     }
+#endif
 }

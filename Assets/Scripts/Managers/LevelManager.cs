@@ -1,21 +1,17 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
+using DG.Tweening;
 
 public class LevelManager : MonoBehaviour
 {
     public static LevelManager Instance { get; private set; }
 
-    [SerializeField] private GameObject[] levelPrefabs;
-    [SerializeField] private GameView gameView;
-    [SerializeField] private RectTransform levelContainer;
+    [SerializeField] private GameMechanicsConfig config;
+    [SerializeField] private Transform levelRoot;
+    [SerializeField] private RectTransform levelArea;
 
-    private GameObject currentLevelInstance;
-    public GameState CurrentState { get; private set; }
-
-    private Vector2Int initialPlayerPos;
-    private HashSet<Vector2Int> initialBoxes;
     private int currentLevelIndex = 0;
+    private GameObject currentLevelInstance;
 
     private void Awake()
     {
@@ -29,101 +25,154 @@ public class LevelManager : MonoBehaviour
 
     private void Start()
     {
-        StartCoroutine(StartRoutine());
+        currentLevelIndex = PlayerPrefs.GetInt("SavedLevelIndex", 0);
     }
 
-    private IEnumerator StartRoutine()
+    public void StartGame()
     {
-        yield return new WaitForSeconds(0.2f);
         LoadLevel(currentLevelIndex);
     }
 
     public void LoadLevel(int index)
     {
-        if (index < 0 || index >= levelPrefabs.Length) return;
+        if (config == null || config.levels.Count == 0) return;
+
+        if (index >= config.levels.Count)
+        {
+            index = 0;
+        }
 
         currentLevelIndex = index;
 
-        if (RuntimeLevelEditor.Instance != null)
+        PlayerPrefs.SetInt("SavedLevelIndex", currentLevelIndex);
+        PlayerPrefs.Save();
+
+        if (GameUIManager.Instance != null)
         {
-            RuntimeLevelEditor.Instance.ClearLevel();
+            GameUIManager.Instance.UpdateLevelText(currentLevelIndex + 1);
+            GameUIManager.Instance.HideLevelCompletePanel();
         }
 
-        if (currentLevelInstance != null)
+        DOTween.KillAll();
+
+        if (levelRoot != null)
         {
-            Destroy(currentLevelInstance);
-        }
+            levelRoot.localScale = Vector3.one;
+            RectTransform rootRect = levelRoot.GetComponent<RectTransform>();
+            if (rootRect != null) rootRect.anchoredPosition = Vector2.zero;
 
-        currentLevelInstance = Instantiate(levelPrefabs[currentLevelIndex], levelContainer);
-        LevelDataPayload payload = LevelScanner.Scan(currentLevelInstance.transform);
-
-        if (payload != null)
-        {
-            CurrentState = payload.State;
-            initialPlayerPos = CurrentState.Player;
-            initialBoxes = new HashSet<Vector2Int>(CurrentState.Boxes);
-
-            int bestScore = PlayerPrefs.GetInt($"Level_{currentLevelIndex}_BestScore", int.MaxValue);
-            gameView.Initialize(payload, bestScore);
-
-            if (AnalyticsManager.Instance != null)
+            foreach (Transform child in levelRoot)
             {
-                AnalyticsManager.Instance.LogActionWithParam("level_loaded", "level_index", currentLevelIndex.ToString());
+                child.gameObject.SetActive(false);
+                Destroy(child.gameObject);
             }
+            levelRoot.DetachChildren();
         }
+
+        currentLevelInstance = null;
+
+        GameObject prefab = config.levels[currentLevelIndex].levelPrefab;
+        if (prefab != null)
+        {
+            currentLevelInstance = Instantiate(prefab, levelRoot);
+
+            var inputModules = currentLevelInstance.GetComponentsInChildren<BaseInputModule>(true);
+            foreach (var module in inputModules)
+            {
+                DestroyImmediate(module);
+            }
+
+            var extraEventSystems = currentLevelInstance.GetComponentsInChildren<EventSystem>(true);
+            foreach (var es in extraEventSystems)
+            {
+                DestroyImmediate(es);
+            }
+
+            if (GameController.Instance != null)
+            {
+                GameController.Instance.InitializeLevel(currentLevelInstance.transform, config, currentLevelIndex);
+            }
+
+            AutoScaleLevelRoot();
+        }
+    }
+
+    private void AutoScaleLevelRoot()
+    {
+        if (levelRoot == null) return;
+
+        Canvas.ForceUpdateCanvases();
+
+        RectTransform rootRect = levelRoot.GetComponent<RectTransform>();
+        Canvas canvas = levelRoot.GetComponentInParent<Canvas>();
+        if (rootRect == null || canvas == null) return;
+
+        if (levelArea != null && levelArea != rootRect)
+        {
+            levelRoot.SetParent(levelArea, false);
+            rootRect.anchorMin = new Vector2(0.5f, 0.5f);
+            rootRect.anchorMax = new Vector2(0.5f, 0.5f);
+            rootRect.pivot = new Vector2(0.5f, 0.5f);
+        }
+
+        float minX = float.MaxValue, maxX = float.MinValue;
+        float minY = float.MaxValue, maxY = float.MinValue;
+        bool hasElements = false;
+
+        RectTransform[] allRects = levelRoot.GetComponentsInChildren<RectTransform>();
+        foreach (var rect in allRects)
+        {
+            if (rect == rootRect || rect.GetComponent<Canvas>() != null) continue;
+
+            Vector3 localPos = rootRect.InverseTransformPoint(rect.position);
+
+            hasElements = true;
+            if (localPos.x < minX) minX = localPos.x;
+            if (localPos.x > maxX) maxX = localPos.x;
+            if (localPos.y < minY) minY = localPos.y;
+            if (localPos.y > maxY) maxY = localPos.y;
+        }
+
+        if (!hasElements) return;
+
+        float width = (maxX - minX) + 120f;
+        float height = (maxY - minY) + 120f;
+
+        RectTransform canvasRect = canvas.GetComponent<RectTransform>();
+        float screenW = canvasRect.rect.width * 0.90f;
+        float screenH = canvasRect.rect.height * 0.65f;
+
+        if (levelArea != null && levelArea.rect.width > 100f && levelArea.rect.height > 100f)
+        {
+            screenW = levelArea.rect.width * 0.95f;
+            screenH = levelArea.rect.height * 0.95f;
+        }
+
+        float scale = Mathf.Min(screenW / width, screenH / height);
+        scale = Mathf.Clamp(scale, 0.5f, 4.0f);
+
+        levelRoot.localScale = new Vector3(scale, scale, 1f);
+
+        float centerX = (minX + maxX) / 2f;
+        float centerY = (minY + maxY) / 2f;
+
+        rootRect.localPosition = new Vector3(-centerX * scale, -centerY * scale, 0f);
+    }
+
+    public void NextLevel()
+    {
+        LoadLevel(currentLevelIndex + 1);
     }
 
     public void RestartLevel()
     {
-        if (CurrentState == null) return;
-
-        CurrentState.ResetState(initialPlayerPos, new HashSet<Vector2Int>(initialBoxes));
-        int bestScore = PlayerPrefs.GetInt($"Level_{currentLevelIndex}_BestScore", int.MaxValue);
-        gameView.SyncVisualsInstantly(bestScore);
-
-        if (AnalyticsManager.Instance != null)
-        {
-            AnalyticsManager.Instance.LogActionWithParam("level_restarted", "level_index", currentLevelIndex.ToString());
-        }
+        LoadLevel(currentLevelIndex);
     }
 
-    public void LevelCompleted()
+    public void ResetProgress()
     {
-        int currentMoves = CurrentState.MoveCount;
-        string prefsKey = $"Level_{currentLevelIndex}_BestScore";
-        int bestScore = PlayerPrefs.GetInt(prefsKey, int.MaxValue);
-
-        if (currentMoves < bestScore)
-        {
-            PlayerPrefs.SetInt(prefsKey, currentMoves);
-            PlayerPrefs.Save();
-        }
-
-        int nextLevelIndex = currentLevelIndex + 1;
-        if (nextLevelIndex < levelPrefabs.Length)
-        {
-            LoadLevel(nextLevelIndex);
-        }
-    }
-
-    public void ReloadFromEditor(Transform editorRoot)
-    {
-        StartCoroutine(ReloadRoutine(editorRoot));
-    }
-
-    private System.Collections.IEnumerator ReloadRoutine(Transform editorRoot)
-    {
-        yield return new WaitForEndOfFrame();
-
-        LevelDataPayload payload = LevelScanner.Scan(editorRoot);
-
-        if (payload != null)
-        {
-            CurrentState = payload.State;
-            initialPlayerPos = CurrentState.Player;
-            initialBoxes = new HashSet<Vector2Int>(CurrentState.Boxes);
-
-            gameView.Initialize(payload, int.MaxValue);
-        }
+        PlayerPrefs.DeleteKey("SavedLevelIndex");
+        PlayerPrefs.Save();
+        LoadLevel(0);
     }
 }

@@ -1,382 +1,352 @@
-using System.Collections;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
+using DG.Tweening;
 
 public class GameView : MonoBehaviour
 {
     public bool IsAnimating { get; private set; }
 
-    [SerializeField] private HudController hudController;
-    [SerializeField] private GameObject highlightPrefab;
-
-    private GameState state;
-    private Dictionary<Vector2Int, BoxView> boxViews;
+    private Dictionary<Vector2Int, GameObject> boxViews;
+    private Dictionary<Vector2Int, GameObject> brokenBoxViews;
+    private Dictionary<Vector2Int, GameObject> doorViews;
+    private Dictionary<Vector2Int, bool> doorStates;
+    private Dictionary<Vector2Int, GoalView> goalViews;
     private RectTransform playerView;
-
     private float minX;
     private float maxY;
-    private const float ANIM_DURATION = 0.08f;
-    private int currentBestScore;
+    private const float CELL_SIZE = 100f;
 
-    private List<GameObject> activeHighlights = new List<GameObject>();
-    private List<GameObject> backgroundGrid = new List<GameObject>();
-    private Coroutine solveRoutine;
-
-    public void Initialize(LevelDataPayload payload, int bestScore)
+    public void InitializeVisuals(LevelDataPayload payload)
     {
+        MonoBehaviour[] allScripts = FindObjectsOfType<MonoBehaviour>();
+        foreach (MonoBehaviour script in allScripts)
+        {
+            if (script != null && script.GetType().Name.Contains("SnapToGrid"))
+            {
+                Destroy(script);
+            }
+        }
+
+        boxViews = payload.BoxViews;
+        brokenBoxViews = new Dictionary<Vector2Int, GameObject>();
+        doorViews = payload.DoorViews;
+        doorStates = new Dictionary<Vector2Int, bool>();
+        goalViews = new Dictionary<Vector2Int, GoalView>();
+        playerView = payload.PlayerView;
+        minX = payload.MinX;
+        maxY = payload.MaxY;
         IsAnimating = false;
-        if (solveRoutine != null) { StopCoroutine(solveRoutine); solveRoutine = null; }
 
-        this.state = payload.State;
-        this.playerView = payload.PlayerView;
-        this.minX = payload.MinX;
-        this.maxY = payload.MaxY;
-        this.currentBestScore = bestScore;
-
-        boxViews = new Dictionary<Vector2Int, BoxView>();
-
-        foreach (var kvp in payload.BoxViews)
+        if (playerView != null)
         {
-            BoxView bv = kvp.Value.GetComponent<BoxView>();
-            boxViews.Add(kvp.Key, bv);
-        }
+            playerView.anchorMin = new Vector2(0.5f, 0.5f);
+            playerView.anchorMax = new Vector2(0.5f, 0.5f);
+            playerView.pivot = new Vector2(0.5f, 0.5f);
+            playerView.localScale = Vector3.one;
 
-        UpdateAllBoxVisuals();
-        ClearHighlights();
-        CreateBackgroundGrid();
-
-        if (hudController != null)
-        {
-            hudController.SetDeadlockWarning(false);
-            hudController.UpdateCounters(this.state.MoveCount, this.state.PushCount, currentBestScore);
-        }
-    }
-
-    private void CreateBackgroundGrid()
-    {
-        foreach (var bg in backgroundGrid) Destroy(bg);
-        backgroundGrid.Clear();
-
-        int cols = state.StaticGrid.GetLength(0);
-        int rows = state.StaticGrid.GetLength(1);
-        float c = GridGeometry.CELL_SIZE;
-
-        float totalWidth = cols * c;
-        float totalHeight = rows * c;
-
-        Vector2 topLeftCellCenter = GridGeometry.GridToWorld(0, 0, minX, maxY);
-        Vector2 gridTopLeftEdge = topLeftCellCenter + new Vector2(-c / 2f, c / 2f);
-
-        GameObject gridRoot = new GameObject("ProceduralGridLines");
-        gridRoot.transform.SetParent(playerView.parent);
-        gridRoot.transform.SetAsFirstSibling(); 
-
-        RectTransform rootRt = gridRoot.AddComponent<RectTransform>();
-        rootRt.anchoredPosition = Vector2.zero;
-        rootRt.localScale = Vector3.one;
-        backgroundGrid.Add(gridRoot);
-
-        Color lineColor = new Color(0f, 0f, 0f, 0.15f);
-        float lineThickness = 2.5f; 
-
-        for (int x = 0; x <= cols; x++)
-        {
-            GameObject vLine = new GameObject($"VLine_{x}");
-            vLine.transform.SetParent(gridRoot.transform);
-            RectTransform rt = vLine.AddComponent<RectTransform>();
-            rt.anchoredPosition = new Vector2(gridTopLeftEdge.x + (x * c), gridTopLeftEdge.y - (totalHeight / 2f));
-            rt.sizeDelta = new Vector2(lineThickness, totalHeight);
-            rt.localScale = Vector3.one;
-
-            UnityEngine.UI.Image img = vLine.AddComponent<UnityEngine.UI.Image>();
-            img.color = lineColor;
-        }
-
-        for (int y = 0; y <= rows; y++)
-        {
-            GameObject hLine = new GameObject($"HLine_{y}");
-            hLine.transform.SetParent(gridRoot.transform);
-            RectTransform rt = hLine.AddComponent<RectTransform>();
-            rt.anchoredPosition = new Vector2(gridTopLeftEdge.x + (totalWidth / 2f), gridTopLeftEdge.y - (y * c));
-            rt.sizeDelta = new Vector2(totalWidth, lineThickness);
-            rt.localScale = Vector3.one;
-
-            UnityEngine.UI.Image img = hLine.AddComponent<UnityEngine.UI.Image>();
-            img.color = lineColor;
-        }
-    }
-
-    public void HandleMove(Vector2Int dir)
-    {
-        if (RuntimeLevelEditor.IsEditorActive || state == null) return;
-        if (IsAnimating || solveRoutine != null) return;
-
-        Vector2Int playerOldPos = state.Player;
-        Vector2Int targetPos = playerOldPos + dir;
-        bool isBoxPush = state.Boxes.Contains(targetPos);
-
-        if (state.TryMove(dir))
-        {
-            ClearHighlights();
-            if (hudController != null)
+            if (payload.State != null)
             {
-                hudController.SetDeadlockWarning(false);
-                hudController.UpdateCounters(state.MoveCount, state.PushCount, currentBestScore);
+                playerView.anchoredPosition = GridToWorld(payload.State.Player);
             }
-            StartCoroutine(AnimateMove(playerOldPos, dir, isBoxPush));
-
-            LogMoveEvent(dir);
-            if (isBoxPush && AnalyticsManager.Instance != null) AnalyticsManager.Instance.LogAction("box_pushed");
         }
-    }
 
-    private void LogMoveEvent(Vector2Int dir)
-    {
-        if (AnalyticsManager.Instance == null) return;
-
-        string eventName = "move_unknown";
-        if (dir.x > 0) eventName = "move_right";
-        else if (dir.x < 0) eventName = "move_left";
-        else if (dir.y > 0) eventName = "move_down";
-        else if (dir.y < 0) eventName = "move_up";
-
-        AnalyticsManager.Instance.LogAction(eventName);
-    }
-
-    public void HandleUndo()
-    {
-        if (RuntimeLevelEditor.IsEditorActive || state == null) return;
-        if (IsAnimating || solveRoutine != null) return;
-
-        if (state.TryUndo(out MoveRecord record, out Vector2Int prevPlayer))
+        if (boxViews != null && playerView != null)
         {
-            ClearHighlights();
-            if (hudController != null)
+            foreach (var kvp in boxViews)
             {
-                hudController.SetDeadlockWarning(state.IsDeadlocked());
-                hudController.UpdateCounters(state.MoveCount, state.PushCount, currentBestScore);
+                if (kvp.Value != null)
+                {
+                    RectTransform boxRect = kvp.Value.GetComponent<RectTransform>();
+                    if (boxRect != null)
+                    {
+                        boxRect.SetParent(playerView.parent, true);
+                        boxRect.anchorMin = new Vector2(0.5f, 0.5f);
+                        boxRect.anchorMax = new Vector2(0.5f, 0.5f);
+                        boxRect.pivot = new Vector2(0.5f, 0.5f);
+                        boxRect.anchoredPosition = GridToWorld(kvp.Key);
+                        boxRect.SetAsLastSibling();
+                    }
+                }
             }
-            StartCoroutine(AnimateUndo(prevPlayer, record));
+        }
 
-            if (AnalyticsManager.Instance != null) AnalyticsManager.Instance.LogAction("undo_used");
+        if (playerView != null)
+        {
+            playerView.SetAsLastSibling();
+        }
+
+        GoalView[] allGoals = FindObjectsOfType<GoalView>();
+        foreach (var g in allGoals)
+        {
+            GoalGridObject goalGrid = g.GetComponent<GoalGridObject>();
+            if (goalGrid != null)
+            {
+                RectTransform r = goalGrid.GetComponent<RectTransform>();
+                if (r != null)
+                {
+                    Transform root = playerView != null ? playerView.parent : r.parent;
+                    Vector3 unifiedPos = root.InverseTransformPoint(r.position);
+                    int x = Mathf.RoundToInt((unifiedPos.x - minX) / CELL_SIZE);
+                    int y = Mathf.RoundToInt((maxY - unifiedPos.y) / CELL_SIZE);
+                    goalViews[new Vector2Int(x, y)] = g;
+
+                    r.anchorMin = new Vector2(0.5f, 0.5f);
+                    r.anchorMax = new Vector2(0.5f, 0.5f);
+                    r.pivot = new Vector2(0.5f, 0.5f);
+                    r.anchoredPosition = GridToWorld(new Vector2Int(x, y));
+                }
+            }
         }
     }
 
-    public void SyncVisualsInstantly(int bestScore)
+    public void SyncDoors(GameState state, bool animate = true)
     {
-        if (RuntimeLevelEditor.IsEditorActive || state == null) return;
-
-        if (solveRoutine != null) StopCoroutine(solveRoutine);
-        solveRoutine = null;
-        this.currentBestScore = bestScore;
-
-        Vector2Int pPos = state.Player;
-        playerView.anchoredPosition = GridGeometry.GridToWorld(pPos.x, pPos.y, minX, maxY);
-
-        Dictionary<Vector2Int, BoxView> newBoxViews = new Dictionary<Vector2Int, BoxView>();
-        Queue<BoxView> unassignedViews = new Queue<BoxView>(boxViews.Values);
-
-        foreach (var boxPos in state.Boxes)
+        if (doorViews == null) return;
+        foreach (var kvp in doorViews)
         {
-            BoxView bv = unassignedViews.Dequeue();
-            bv.GetComponent<RectTransform>().anchoredPosition = GridGeometry.GridToWorld(boxPos.x, boxPos.y, minX, maxY);
-            newBoxViews.Add(boxPos, bv);
-        }
-
-        boxViews = newBoxViews;
-        UpdateAllBoxVisuals();
-        ClearHighlights();
-
-        if (hudController != null)
-        {
-            hudController.SetDeadlockWarning(false);
-            hudController.UpdateCounters(state.MoveCount, state.PushCount, currentBestScore);
+            bool isOpen = state.IsDoorOpen(kvp.Key);
+            if (!doorStates.TryGetValue(kvp.Key, out bool wasOpen) || wasOpen != isOpen)
+            {
+                doorStates[kvp.Key] = isOpen;
+                if (animate)
+                {
+                    if (HapticManager.Instance != null) HapticManager.Instance.PlayDoorToggle();
+                    if (isOpen) kvp.Value.transform.DOScale(Vector3.zero, 0.3f).SetEase(Ease.InBack);
+                    else kvp.Value.transform.DOScale(Vector3.one, 0.3f).SetEase(Ease.OutBack);
+                }
+                else
+                {
+                    kvp.Value.transform.localScale = isOpen ? Vector3.zero : Vector3.one;
+                }
+            }
         }
     }
 
-    public void ToggleFloodFill()
+    public void UpdateAllBoxes(Dictionary<Vector2Int, BoxData> boxes, Dictionary<Vector2Int, ObjectColor> goals)
     {
-        if (RuntimeLevelEditor.IsEditorActive || state == null) return;
-        if (IsAnimating) return;
-
-        if (activeHighlights.Count > 0)
+        foreach (var kvp in boxes)
         {
-            ClearHighlights();
-            return;
+            if (boxViews.TryGetValue(kvp.Key, out GameObject boxObj))
+            {
+                RectTransform rect = boxObj.GetComponent<RectTransform>();
+                if (rect != null)
+                {
+                    rect.anchoredPosition = GridToWorld(kvp.Key);
+                }
+
+                BoxView bv = boxObj.GetComponent<BoxView>();
+                if (bv != null)
+                {
+                    bool isOnGoal = goals.TryGetValue(kvp.Key, out ObjectColor gColor) && (gColor == ObjectColor.None || gColor == kvp.Value.Color);
+                    bv.UpdateVisuals(isOnGoal, kvp.Value.Durability, kvp.Key, HandleGoalVisualState);
+                }
+            }
         }
-
-        if (highlightPrefab == null) return;
-
-        HashSet<Vector2Int> reachable = state.GetReachableCells();
-        foreach (var cell in reachable)
-        {
-            GameObject hl = Instantiate(highlightPrefab, playerView.parent);
-            RectTransform rt = hl.GetComponent<RectTransform>();
-            rt.anchoredPosition = GridGeometry.GridToWorld(cell.x, cell.y, minX, maxY);
-            rt.SetAsFirstSibling();
-            activeHighlights.Add(hl);
-        }
-
-        if (AnalyticsManager.Instance != null) AnalyticsManager.Instance.LogAction("floodfill_used");
     }
 
-    public void AutoSolve()
+    private void HandleGoalVisualState(Vector2Int pos, bool isCompleted)
     {
-        if (RuntimeLevelEditor.IsEditorActive || state == null) return;
-        if (IsAnimating || solveRoutine != null || state.IsSolved()) return;
-
-        if (AnalyticsManager.Instance != null) AnalyticsManager.Instance.LogAction("autosolve_started");
-        solveRoutine = StartCoroutine(SolveRoutine());
-    }
-
-    private IEnumerator SolveRoutine()
-    {
-        List<Vector2Int> path = SokobanSolver.Solve(state);
-
-        if (path == null || path.Count == 0)
+        if (goalViews != null && goalViews.TryGetValue(pos, out GoalView goalView))
         {
-            if (hudController != null) hudController.SetDeadlockWarning(true);
-            solveRoutine = null;
-            yield break;
+            goalView.SetState(isCompleted);
         }
-
-        if (hudController != null) hudController.SetDeadlockWarning(false);
-
-        foreach (Vector2Int dir in path)
-        {
-            Vector2Int playerOldPos = state.Player;
-            Vector2Int targetPos = playerOldPos + dir;
-            bool isBoxPush = state.Boxes.Contains(targetPos);
-
-            state.TryMove(dir);
-            if (hudController != null) hudController.UpdateCounters(state.MoveCount, state.PushCount, currentBestScore);
-
-            yield return StartCoroutine(AnimateMove(playerOldPos, dir, isBoxPush));
-        }
-        solveRoutine = null;
     }
 
-    private void ClearHighlights()
-    {
-        foreach (var hl in activeHighlights) Destroy(hl);
-        activeHighlights.Clear();
-    }
-
-    private IEnumerator AnimateMove(Vector2Int oldPlayerPos, Vector2Int dir, bool pushedBox)
+    public void AnimateMove(MoveRecord record, Action onComplete, float duration)
     {
         IsAnimating = true;
+        Sequence seq = DOTween.Sequence();
+        float portalDur = 0.4f;
+        if (duration <= 0.05f) duration = 0.15f;
 
-        Vector2Int newPlayerPos = state.Player;
-        Vector2 playerStart = playerView.anchoredPosition;
-        Vector2 playerEnd = GridGeometry.GridToWorld(newPlayerPos.x, newPlayerPos.y, minX, maxY);
-
-        BoxView boxView = null;
-        Vector2 boxStart = Vector2.zero;
-        Vector2 boxEnd = Vector2.zero;
-        Vector2Int newBoxPos = Vector2Int.zero;
-
-        if (pushedBox)
+        if (playerView != null)
         {
-            Vector2Int oldBoxPos = oldPlayerPos + dir;
-            newBoxPos = newPlayerPos + dir;
-
-            boxView = boxViews[oldBoxPos];
-            boxViews.Remove(oldBoxPos);
-            boxViews.Add(newBoxPos, boxView);
-
-            boxStart = boxView.GetComponent<RectTransform>().anchoredPosition;
-            boxEnd = GridGeometry.GridToWorld(newBoxPos.x, newBoxPos.y, minX, maxY);
+            playerView.DOKill(true);
+            playerView.anchoredPosition = GridToWorld(record.Player.StartPos);
         }
 
-        float elapsed = 0f;
-        while (elapsed < ANIM_DURATION)
+        if (record.Player.IsPortalRejected)
         {
-            elapsed += Time.deltaTime;
-            float t = elapsed / ANIM_DURATION;
+            Vector2 entry = GridToWorld(record.Player.PortalEntry);
+            Vector2 start = GridToWorld(record.Player.StartPos);
+            seq.Insert(0, playerView.DOAnchorPos(entry, portalDur * 0.5f).SetEase(Ease.InBack))
+               .Insert(0, playerView.DOScale(Vector3.zero, portalDur * 0.5f).SetEase(Ease.InBack))
+               .InsertCallback(portalDur * 0.5f, () => { if (HapticManager.Instance != null) HapticManager.Instance.PlayPortalReject(); })
+               .Insert(portalDur * 0.5f, playerView.DOAnchorPos(start, portalDur * 0.5f).SetEase(Ease.OutBack))
+               .Insert(portalDur * 0.5f, playerView.DOScale(Vector3.one, portalDur * 0.5f).SetEase(Ease.OutBack));
+        }
+        else if (record.Box.IsPortalRejected)
+        {
+            GameObject box = boxViews[record.Box.StartPos];
+            RectTransform boxRect = box.GetComponent<RectTransform>();
 
-            playerView.anchoredPosition = Vector2.Lerp(playerStart, playerEnd, t);
-            if (pushedBox)
+            boxRect.DOKill(true);
+            boxRect.anchoredPosition = GridToWorld(record.Box.StartPos);
+
+            Vector2 bEntry = GridToWorld(record.Box.PortalEntry);
+            Vector2 bStart = GridToWorld(record.Box.StartPos);
+            seq.Insert(0, boxRect.DOAnchorPos(bEntry, portalDur * 0.5f).SetEase(Ease.InBack))
+               .Insert(0, box.transform.DOScale(Vector3.zero, portalDur * 0.5f).SetEase(Ease.InBack))
+               .InsertCallback(portalDur * 0.5f, () => { if (HapticManager.Instance != null) HapticManager.Instance.PlayPortalReject(); })
+               .Insert(portalDur * 0.5f, boxRect.DOAnchorPos(bStart, portalDur * 0.5f).SetEase(Ease.OutBack))
+               .Insert(portalDur * 0.5f, box.transform.DOScale(Vector3.one, portalDur * 0.5f).SetEase(Ease.OutBack));
+
+            Vector2 pStart = GridToWorld(record.Player.StartPos);
+            seq.Insert(0, playerView.DOAnchorPos(bStart, portalDur * 0.5f).SetEase(Ease.OutQuad))
+               .Insert(portalDur * 0.5f, playerView.DOAnchorPos(pStart, portalDur * 0.5f).SetEase(Ease.OutQuad));
+        }
+        else
+        {
+            if (record.Player.IsTeleported)
             {
-                boxView.GetComponent<RectTransform>().anchoredPosition = Vector2.Lerp(boxStart, boxEnd, t);
+                Vector2 entry = GridToWorld(record.Player.PortalEntry);
+                Vector2 exit = GridToWorld(record.Player.EndPos);
+                seq.Insert(0, playerView.DOAnchorPos(entry, portalDur * 0.5f).SetEase(Ease.InBack))
+                   .Insert(0, playerView.DOScale(Vector3.zero, portalDur * 0.5f).SetEase(Ease.InBack))
+                   .InsertCallback(portalDur * 0.5f, () => playerView.anchoredPosition = exit)
+                   .Insert(portalDur * 0.5f, playerView.DOScale(Vector3.one, portalDur * 0.5f).SetEase(Ease.OutBack));
             }
-            yield return null;
+            else
+            {
+                seq.Insert(0, playerView.DOAnchorPos(GridToWorld(record.Player.EndPos), duration).SetEase(Ease.OutQuad));
+            }
+
+            if (record.Box.IsPushed)
+            {
+                if (HapticManager.Instance != null) HapticManager.Instance.PlayWarning();
+
+                GameObject box = boxViews[record.Box.StartPos];
+                boxViews.Remove(record.Box.StartPos);
+
+                RectTransform boxRect = box.GetComponent<RectTransform>();
+
+                if (boxRect != null)
+                {
+                    boxRect.DOKill(true);
+                    boxRect.anchoredPosition = GridToWorld(record.Box.StartPos);
+                }
+
+                if (record.Box.IsTeleported)
+                {
+                    Vector2 bEntry = GridToWorld(record.Box.PortalEntry);
+                    Vector2 bExit = GridToWorld(record.Box.EndPos);
+                    seq.Insert(0, boxRect.DOAnchorPos(bEntry, portalDur * 0.5f).SetEase(Ease.InBack))
+                       .Insert(0, box.transform.DOScale(Vector3.zero, portalDur * 0.5f).SetEase(Ease.InBack))
+                       .InsertCallback(portalDur * 0.5f, () => boxRect.anchoredPosition = bExit)
+                       .Insert(portalDur * 0.5f, box.transform.DOScale(Vector3.one, portalDur * 0.5f).SetEase(Ease.OutBack));
+                }
+                else
+                {
+                    seq.Insert(0, boxRect.DOAnchorPos(GridToWorld(record.Box.EndPos), duration).SetEase(Ease.OutQuad));
+                }
+
+                if (record.Box.IsBroken)
+                {
+                    if (HapticManager.Instance != null) HapticManager.Instance.PlayError();
+
+                    if (!brokenBoxViews.ContainsKey(record.Box.EndPos))
+                    {
+                        brokenBoxViews.Add(record.Box.EndPos, box);
+                    }
+
+                    BoxView bv = box.GetComponent<BoxView>();
+                    if (bv != null) bv.UpdateVisuals(false, 0, record.Box.EndPos, HandleGoalVisualState);
+
+                    Sequence breakSeq = DOTween.Sequence();
+                    breakSeq.Append(box.transform.DOShakeScale(0.3f, 0.4f, 10, 90f));
+                    breakSeq.Append(box.transform.DOScale(Vector3.zero, 0.2f).SetEase(Ease.InBack));
+
+                    seq.Insert(duration, breakSeq);
+                }
+                else
+                {
+                    boxViews.Add(record.Box.EndPos, box);
+                }
+            }
         }
 
-        playerView.anchoredPosition = playerEnd;
-        if (pushedBox)
+        seq.OnComplete(() =>
         {
-            boxView.GetComponent<RectTransform>().anchoredPosition = boxEnd;
-            boxView.SetOnGoal(state.IsOnGoal(newBoxPos));
-        }
-
-        IsAnimating = false;
-
-        if (state.IsSolved())
-        {
-            if (AnalyticsManager.Instance != null) AnalyticsManager.Instance.LogAction("level_completed");
-            LevelManager.Instance.LevelCompleted();
-        }
-        else if (state.IsDeadlocked())
-        {
-            if (hudController != null) hudController.SetDeadlockWarning(true);
-            if (AnalyticsManager.Instance != null) AnalyticsManager.Instance.LogAction("deadlock_reached");
-        }
+            if (playerView != null)
+            {
+                playerView.anchoredPosition = GridToWorld(record.Player.EndPos);
+                playerView.SetAsLastSibling();
+            }
+            IsAnimating = false;
+            onComplete?.Invoke();
+        });
     }
 
-    private IEnumerator AnimateUndo(Vector2Int targetPlayerPos, MoveRecord record)
+    public void AnimateUndo(MoveRecord record, Action onComplete, float duration)
     {
         IsAnimating = true;
+        Sequence seq = DOTween.Sequence();
+        float portalDur = 0.4f;
+        if (duration <= 0.05f) duration = 0.15f;
 
-        Vector2 playerStart = playerView.anchoredPosition;
-        Vector2 playerEnd = GridGeometry.GridToWorld(targetPlayerPos.x, targetPlayerPos.y, minX, maxY);
+        if (playerView != null) playerView.SetAsLastSibling();
 
-        BoxView boxView = null;
-        Vector2 boxStart = Vector2.zero;
-        Vector2 boxEnd = Vector2.zero;
-        Vector2Int targetBoxPos = Vector2Int.zero;
-
-        if (record.pushed)
+        if (record.Player.IsTeleported)
         {
-            Vector2Int currentBoxPos = targetPlayerPos + (record.dir * 2);
-            targetBoxPos = targetPlayerPos + record.dir;
-
-            boxView = boxViews[currentBoxPos];
-            boxViews.Remove(currentBoxPos);
-            boxViews.Add(targetBoxPos, boxView);
-
-            boxStart = boxView.GetComponent<RectTransform>().anchoredPosition;
-            boxEnd = GridGeometry.GridToWorld(targetBoxPos.x, targetBoxPos.y, minX, maxY);
+            Vector2 entry = GridToWorld(record.Player.PortalEntry);
+            Vector2 start = GridToWorld(record.Player.StartPos);
+            seq.InsertCallback(0f, () => { playerView.anchoredPosition = entry; playerView.localScale = Vector3.zero; })
+               .Insert(0f, playerView.DOScale(Vector3.one, portalDur * 0.5f).SetEase(Ease.OutBack))
+               .Insert(0f, playerView.DOAnchorPos(start, portalDur * 0.5f).SetEase(Ease.OutQuad));
+        }
+        else
+        {
+            seq.Insert(0, playerView.DOAnchorPos(GridToWorld(record.Player.StartPos), duration).SetEase(Ease.OutQuad));
         }
 
-        float elapsed = 0f;
-        while (elapsed < ANIM_DURATION)
+        if (record.Box.IsPushed)
         {
-            elapsed += Time.deltaTime;
-            float t = elapsed / ANIM_DURATION;
-
-            playerView.anchoredPosition = Vector2.Lerp(playerStart, playerEnd, t);
-            if (record.pushed)
+            GameObject box;
+            if (record.Box.IsBroken)
             {
-                boxView.GetComponent<RectTransform>().anchoredPosition = Vector2.Lerp(boxStart, boxEnd, t);
+                box = brokenBoxViews[record.Box.EndPos];
+                brokenBoxViews.Remove(record.Box.EndPos);
+                box.SetActive(true);
+                box.transform.localScale = Vector3.one;
             }
-            yield return null;
-        }
+            else
+            {
+                box = boxViews[record.Box.EndPos];
+                boxViews.Remove(record.Box.EndPos);
+            }
 
-        playerView.anchoredPosition = playerEnd;
-        if (record.pushed)
+            boxViews.Add(record.Box.StartPos, box);
+            RectTransform boxRect = box.GetComponent<RectTransform>();
+            boxRect.SetAsLastSibling();
+
+            if (record.Box.IsTeleported)
+            {
+                Vector2 entry = GridToWorld(record.Box.PortalEntry);
+                Vector2 start = GridToWorld(record.Box.StartPos);
+                seq.InsertCallback(0f, () => { boxRect.anchoredPosition = entry; box.transform.localScale = Vector3.zero; })
+                   .Insert(0f, box.transform.DOScale(Vector3.one, portalDur * 0.5f).SetEase(Ease.OutBack))
+                   .Insert(0f, boxRect.DOAnchorPos(start, portalDur * 0.5f).SetEase(Ease.OutQuad));
+            }
+            else
+            {
+                seq.Insert(0, boxRect.DOAnchorPos(GridToWorld(record.Box.StartPos), duration).SetEase(Ease.OutQuad));
+            }
+        }
+        seq.OnComplete(() =>
         {
-            boxView.GetComponent<RectTransform>().anchoredPosition = boxEnd;
-            boxView.SetOnGoal(state.IsOnGoal(targetBoxPos));
-        }
-
-        IsAnimating = false;
+            if (playerView != null)
+            {
+                playerView.anchoredPosition = GridToWorld(record.Player.StartPos);
+                playerView.SetAsLastSibling();
+            }
+            IsAnimating = false;
+            onComplete?.Invoke();
+        });
     }
 
-    private void UpdateAllBoxVisuals()
+    private Vector2 GridToWorld(Vector2Int gridPos)
     {
-        foreach (var kvp in boxViews)
-        {
-            kvp.Value.SetOnGoal(state.IsOnGoal(kvp.Key));
-        }
+        return new Vector2(minX + (gridPos.x * CELL_SIZE), maxY - (gridPos.y * CELL_SIZE));
     }
 }

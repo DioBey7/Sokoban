@@ -14,11 +14,17 @@ public class LevelRootEditor : Editor
 
         if (GUILayout.Button("Validate Level", GUILayout.Height(30)))
         {
-            LevelDataPayload payload = LevelScanner.Scan(root.transform);
+            GameMechanicsConfig config = Resources.Load<GameMechanicsConfig>("GameMechanicsConfig");
+
+            LevelDataPayload payload = LevelScanner.Scan(root.transform, config);
 
             if (payload != null)
             {
                 Debug.Log("<color=green>Level validation successful! Matrix is fully synchronized.</color>");
+            }
+            else
+            {
+                Debug.LogError("<color=red>Level validation failed! Ensure a Player object exists.</color>");
             }
         }
     }

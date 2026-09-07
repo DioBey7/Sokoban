@@ -1,0 +1,150 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 86cdda0f3c9da12428ed329620c409e4, type: 3}
+  m_Name: GameMechanicsConfig
+  m_EditorClassIdentifier: 
+  defaultMoveDuration: 0.15
+  defaultIceSlideDuration: 0.12
+  defaultCompletionBonus: 100
+  colorMappings:
+  - colorID: 0
+    baseColor: {r: 0.17254902, g: 0.3647059, b: 0.5294118, a: 0}
+    onGoalColor: {r: 0.4572066, g: 1, b: 0, a: 0}
+  - colorID: 4
+    baseColor: {r: 0, g: 0.5384617, b: 1, a: 0}
+    onGoalColor: {r: 0.4572066, g: 1, b: 0, a: 0}
+  - colorID: 3
+    baseColor: {r: 1, g: 0, b: 0, a: 0}
+    onGoalColor: {r: 0.4572066, g: 1, b: 0, a: 0}
+  - colorID: 5
+    baseColor: {r: 0.3137255, g: 0.8352942, b: 0, a: 0}
+    onGoalColor: {r: 0.4572066, g: 1, b: 0, a: 0}
+  - colorID: 6
+    baseColor: {r: 0.98823535, g: 0.89019614, b: 0, a: 0}
+    onGoalColor: {r: 0.4572066, g: 1, b: 0, a: 0}
+  - colorID: 1
+    baseColor: {r: 0.4037736, g: 0.17494416, b: 0, a: 0}
+    onGoalColor: {r: 0.4572066, g: 1, b: 0, a: 0}
+  - colorID: 2
+    baseColor: {r: 0.98823535, g: 0.48627454, b: 0, a: 0}
+    onGoalColor: {r: 0.4572066, g: 1, b: 0, a: 0}
+  levels:
+  - levelPrefab: {fileID: 3193882423151372823, guid: 71a4a44d950c944498657db956974371, type: 3}
+    maxMoves: 34
+    moveDuration: 0.15
+    iceSlideDuration: 0.12
+    completionBonusGold: 100
+  - levelPrefab: {fileID: 3193882423151372823, guid: 11a4548784bb1884990e42f6f79b74ba, type: 3}
+    maxMoves: 60
+    moveDuration: 0.15
+    iceSlideDuration: 0.12
+    completionBonusGold: 200
+  - levelPrefab: {fileID: 3193882423151372823, guid: e9099e7c490f3264aadac5452a01c70c, type: 3}
+    maxMoves: 44
+    moveDuration: 0.15
+    iceSlideDuration: 0.12
+    completionBonusGold: 300
+  - levelPrefab: {fileID: 3193882423151372823, guid: 1333213fa1522264bb877720707c5ee3, type: 3}
+    maxMoves: 54
+    moveDuration: 0.15
+    iceSlideDuration: 0.12
+    completionBonusGold: 300
+  - levelPrefab: {fileID: 3193882423151372823, guid: 5d7c10d56719da546829b6c145aa0a84, type: 3}
+    maxMoves: 54
+    moveDuration: 0.15
+    iceSlideDuration: 0.12
+    completionBonusGold: 300
+  - levelPrefab: {fileID: 3193882423151372823, guid: 2f6d76bd52ec99e438331ecf4640b5cd, type: 3}
+    maxMoves: 54
+    moveDuration: 0.15
+    iceSlideDuration: 0.12
+    completionBonusGold: 300
+  - levelPrefab: {fileID: 3193882423151372823, guid: 17ed7a285f68c7044bbb5ab14d24b909, type: 3}
+    maxMoves: 60
+    moveDuration: 0.15
+    iceSlideDuration: 0.12
+    completionBonusGold: 300
+  - levelPrefab: {fileID: 3193882423151372823, guid: 745ee066e76286845b767db457af0582, type: 3}
+    maxMoves: 60
+    moveDuration: 0.15
+    iceSlideDuration: 0.12
+    completionBonusGold: 300
+  - levelPrefab: {fileID: 3193882423151372823, guid: 558ef83bebb04bb4897bdffdb9108bbd, type: 3}
+    maxMoves: 56
+    moveDuration: 0.15
+    iceSlideDuration: 0.12
+    completionBonusGold: 300
+  - levelPrefab: {fileID: 3193882423151372823, guid: 54a03c447f29df444a651489f17f706d, type: 3}
+    maxMoves: 56
+    moveDuration: 0.15
+    iceSlideDuration: 0.12
+    completionBonusGold: 300
+  - levelPrefab: {fileID: 3193882423151372823, guid: a3063064e427882439cf45a1aa84769b, type: 3}
+    maxMoves: 58
+    moveDuration: 0.15
+    iceSlideDuration: 0.12
+    completionBonusGold: 300
+  - levelPrefab: {fileID: 3193882423151372823, guid: 3c4d0dda9b0da984da7be1f5ddcd8986, type: 3}
+    maxMoves: 60
+    moveDuration: 0.15
+    iceSlideDuration: 0.12
+    completionBonusGold: 300
+  - levelPrefab: {fileID: 3193882423151372823, guid: b80d57f3b12e4d242b7b7aaa897abcff, type: 3}
+    maxMoves: 34
+    moveDuration: 0.15
+    iceSlideDuration: 0.12
+    completionBonusGold: 300
+  - levelPrefab: {fileID: 3193882423151372823, guid: b5ffdb06157c0cd4ca86f612e799f3ea, type: 3}
+    maxMoves: 50
+    moveDuration: 0.15
+    iceSlideDuration: 0.12
+    completionBonusGold: 300
+  - levelPrefab: {fileID: 3193882423151372823, guid: a087288836e0a8247929f67b1f6607ca, type: 3}
+    maxMoves: 60
+    moveDuration: 0.15
+    iceSlideDuration: 0.12
+    completionBonusGold: 300
+  - levelPrefab: {fileID: 3193882423151372823, guid: e3de6a4c42a8ec14c958091df66fac23, type: 3}
+    maxMoves: 34
+    moveDuration: 0.15
+    iceSlideDuration: 0.12
+    completionBonusGold: 300
+  - levelPrefab: {fileID: 3193882423151372823, guid: c5a06effb7417c54490b6003022860d1, type: 3}
+    maxMoves: 70
+    moveDuration: 0.15
+    iceSlideDuration: 0.12
+    completionBonusGold: 300
+  - levelPrefab: {fileID: 3193882423151372823, guid: 03daccb17d51e9344b211e3172bda876, type: 3}
+    maxMoves: 60
+    moveDuration: 0.15
+    iceSlideDuration: 0.12
+    completionBonusGold: 300
+  - levelPrefab: {fileID: 3193882423151372823, guid: fe727fea0df8c2348b070304a7d6c07d, type: 3}
+    maxMoves: 60
+    moveDuration: 0.15
+    iceSlideDuration: 0.12
+    completionBonusGold: 300
+  - levelPrefab: {fileID: 3193882423151372823, guid: 494c01a3029d60546928348093fff4aa, type: 3}
+    maxMoves: 65
+    moveDuration: 0.15
+    iceSlideDuration: 0.12
+    completionBonusGold: 300
+  - levelPrefab: {fileID: 3193882423151372823, guid: 37ac9465094285242bb1581bdb222559, type: 3}
+    maxMoves: 36
+    moveDuration: 0.15
+    iceSlideDuration: 0.12
+    completionBonusGold: 300
+  - levelPrefab: {fileID: 3193882423151372823, guid: 3aaf5caab0e61764aa1f649644e212da, type: 3}
+    maxMoves: 36
+    moveDuration: 0.15
+    iceSlideDuration: 0.12
+    completionBonusGold: 300

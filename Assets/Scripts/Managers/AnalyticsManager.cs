@@ -1,11 +1,14 @@
 using UnityEngine;
 using Firebase;
 using Firebase.Analytics;
+using Firebase.Extensions; 
+using System.Collections.Generic;
 
 public class AnalyticsManager : MonoBehaviour
 {
     public static AnalyticsManager Instance { get; private set; }
     private bool isFirebaseInitialized = false;
+    private Queue<System.Action> pendingEvents = new Queue<System.Action>();
 
     private void Awake()
     {
@@ -21,11 +24,16 @@ public class AnalyticsManager : MonoBehaviour
 
     private void InitializeFirebase()
     {
-        FirebaseApp.CheckAndFixDependenciesAsync().ContinueWith(task => {
+        FirebaseApp.CheckAndFixDependenciesAsync().ContinueWithOnMainThread(task => {
             if (task.Result == DependencyStatus.Available)
             {
                 isFirebaseInitialized = true;
-                Debug.Log("<color=green>FIREBASE INITIALIZED SUCCESSFULLY!</color>");
+                Debug.Log("<color=green>FIREBASE INITIALIZED SUCCESSFULLY ON MAIN THREAD!</color>");
+
+                while (pendingEvents.Count > 0)
+                {
+                    pendingEvents.Dequeue()?.Invoke();
+                }
             }
             else
             {
@@ -41,6 +49,10 @@ public class AnalyticsManager : MonoBehaviour
             FirebaseAnalytics.LogEvent(eventName);
             Debug.Log($"<color=cyan>FIREBASE LOG SENT: {eventName}</color>");
         }
+        else
+        {
+            pendingEvents.Enqueue(() => LogAction(eventName));
+        }
     }
 
     public void LogActionWithParam(string eventName, string paramName, string paramValue)
@@ -49,6 +61,10 @@ public class AnalyticsManager : MonoBehaviour
         {
             FirebaseAnalytics.LogEvent(eventName, new Parameter(paramName, paramValue));
             Debug.Log($"<color=cyan>FIREBASE LOG SENT: {eventName} | {paramName}:{paramValue}</color>");
+        }
+        else
+        {
+            pendingEvents.Enqueue(() => LogActionWithParam(eventName, paramName, paramValue));
         }
     }
 }

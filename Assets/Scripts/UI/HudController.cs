@@ -1,17 +1,43 @@
 using UnityEngine;
-using TMPro;
+using TMPro; 
 
 public class HudController : MonoBehaviour
 {
-    [SerializeField] private TextMeshProUGUI moveText;
-    [SerializeField] private TextMeshProUGUI pushText;
-    [SerializeField] private TextMeshProUGUI bestScoreText;
+    [SerializeField] private TextMeshProUGUI movesText;
+    [SerializeField] private TextMeshProUGUI pushesText;
+    [SerializeField] private TextMeshProUGUI bestText;
 
-    public void UpdateCounters(int moves, int pushes, int bestScore)
+    public void UpdateCounters(int moves, int pushes, int bestScore, int maxMoves = 0)
     {
-        if (moveText != null) moveText.text = $"MOVES: {moves}";
-        if (pushText != null) pushText.text = $"PUSHES: {pushes}";
-        if (bestScoreText != null) bestScoreText.text = bestScore == int.MaxValue ? "BEST: -" : $"BEST: {bestScore}";
+        if (movesText != null)
+        {
+            if (maxMoves > 0)
+            {
+                int remaining = Mathf.Max(0, maxMoves - moves);
+                movesText.text = $"MOVES: {moves} / {maxMoves}";
+            }
+            else
+            {
+                movesText.text = $"MOVES: {moves}";
+            }
+        }
+
+        if (pushesText != null)
+        {
+            pushesText.text = $"PUSHES: {pushes}";
+        }
+
+        if (bestText != null)
+        {
+            if (bestScore == int.MaxValue)
+            {
+                bestText.text = "BEST: --";
+            }
+            else
+            {
+                bestText.text = $"BEST: {bestScore}";
+            }
+        }
     }
 
     public void SetDeadlockWarning(bool isActive)

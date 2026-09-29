@@ -133,7 +133,7 @@ cd Sokoban
 
 ## Controls
 
-- Movement: WASD or arrow keys in the editor
+- Movement: swiping (Swipe motion with mouse if it is tested in PC)
 - Retry: fail popup button / restart flow
 - Mobile-ready build: designed to be adapted to touch input and touch-friendly UI
 

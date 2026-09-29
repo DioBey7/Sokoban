@@ -35,15 +35,13 @@ public class LevelManager : MonoBehaviour
 
     public void LoadLevel(int index)
     {
+        Time.timeScale = 1f;
+
         if (config == null || config.levels.Count == 0) return;
 
-        if (index >= config.levels.Count)
-        {
-            index = 0;
-        }
+        if (index >= config.levels.Count) index = 0;
 
         currentLevelIndex = index;
-
         PlayerPrefs.SetInt("SavedLevelIndex", currentLevelIndex);
         PlayerPrefs.Save();
 
@@ -58,8 +56,6 @@ public class LevelManager : MonoBehaviour
         if (levelRoot != null)
         {
             levelRoot.localScale = Vector3.one;
-            RectTransform rootRect = levelRoot.GetComponent<RectTransform>();
-            if (rootRect != null) rootRect.anchoredPosition = Vector2.zero;
 
             foreach (Transform child in levelRoot)
             {
@@ -77,16 +73,10 @@ public class LevelManager : MonoBehaviour
             currentLevelInstance = Instantiate(prefab, levelRoot);
 
             var inputModules = currentLevelInstance.GetComponentsInChildren<BaseInputModule>(true);
-            foreach (var module in inputModules)
-            {
-                DestroyImmediate(module);
-            }
+            foreach (var module in inputModules) DestroyImmediate(module);
 
             var extraEventSystems = currentLevelInstance.GetComponentsInChildren<EventSystem>(true);
-            foreach (var es in extraEventSystems)
-            {
-                DestroyImmediate(es);
-            }
+            foreach (var es in extraEventSystems) DestroyImmediate(es);
 
             if (GameController.Instance != null)
             {
@@ -104,15 +94,11 @@ public class LevelManager : MonoBehaviour
         Canvas.ForceUpdateCanvases();
 
         RectTransform rootRect = levelRoot.GetComponent<RectTransform>();
-        Canvas canvas = levelRoot.GetComponentInParent<Canvas>();
-        if (rootRect == null || canvas == null) return;
+        if (rootRect == null) return;
 
         if (levelArea != null && levelArea != rootRect)
         {
             levelRoot.SetParent(levelArea, false);
-            rootRect.anchorMin = new Vector2(0.5f, 0.5f);
-            rootRect.anchorMax = new Vector2(0.5f, 0.5f);
-            rootRect.pivot = new Vector2(0.5f, 0.5f);
         }
 
         float minX = float.MaxValue, maxX = float.MinValue;
@@ -123,6 +109,8 @@ public class LevelManager : MonoBehaviour
         foreach (var rect in allRects)
         {
             if (rect == rootRect || rect.GetComponent<Canvas>() != null) continue;
+            if (rect.rect.width > 150f || rect.rect.height > 150f) continue;
+            if (!rect.gameObject.activeInHierarchy || rect.GetComponent<UnityEngine.UI.Image>() == null) continue;
 
             Vector3 localPos = rootRect.InverseTransformPoint(rect.position);
 
@@ -138,25 +126,45 @@ public class LevelManager : MonoBehaviour
         float width = (maxX - minX) + 120f;
         float height = (maxY - minY) + 120f;
 
-        RectTransform canvasRect = canvas.GetComponent<RectTransform>();
-        float screenW = canvasRect.rect.width * 0.90f;
-        float screenH = canvasRect.rect.height * 0.65f;
+        float screenW = Screen.width * 0.90f;
+        float screenH = Screen.height * 0.65f;
 
-        if (levelArea != null && levelArea.rect.width > 100f && levelArea.rect.height > 100f)
+        if (levelArea != null && levelArea.rect.width > 50f && levelArea.rect.height > 50f)
         {
-            screenW = levelArea.rect.width * 0.95f;
-            screenH = levelArea.rect.height * 0.95f;
+            screenW = levelArea.rect.width;
+            screenH = levelArea.rect.height;
         }
 
         float scale = Mathf.Min(screenW / width, screenH / height);
-        scale = Mathf.Clamp(scale, 0.5f, 4.0f);
+        scale = Mathf.Clamp(scale, 0.4f, 3.0f);
 
         levelRoot.localScale = new Vector3(scale, scale, 1f);
 
         float centerX = (minX + maxX) / 2f;
         float centerY = (minY + maxY) / 2f;
 
-        rootRect.localPosition = new Vector3(-centerX * scale, -centerY * scale, 0f);
+        if (currentLevelInstance != null)
+        {
+            RectTransform instanceRect = currentLevelInstance.GetComponent<RectTransform>();
+            if (instanceRect != null)
+            {
+                instanceRect.localPosition = new Vector3(-centerX, -centerY, 0f);
+            }
+        }
+    }
+
+    public void ClearLevel()
+    {
+        if (levelRoot != null)
+        {
+            foreach (Transform child in levelRoot)
+            {
+                child.gameObject.SetActive(false);
+                Destroy(child.gameObject);
+            }
+            levelRoot.DetachChildren();
+        }
+        currentLevelInstance = null;
     }
 
     public void NextLevel()

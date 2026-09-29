@@ -110,30 +110,24 @@ public class GameController : MonoBehaviour
 
         wasLastMoveRejected = (result == MoveResult.PortalRejected);
 
-        if (result == MoveResult.Success)
+        if (result == MoveResult.Success || result == MoveResult.PortalRejected)
         {
-            if (record.Box.IsPushed)
+            if (result == MoveResult.Success)
             {
-                Debug.Log("<color=cyan>[SÝSTEM TESTÝ]</color> Kutu itildi! HapticManager aranýyor...");
-
-                if (HapticManager.Instance == null)
-                {
-                    Debug.LogError("<color=red>[KRÝTÝK HATA]</color> HapticManager.Instance NULL! Obje sahnede yok, kapalý (inaktif) veya Awake döngüsü çalýþmadý.");
-                }
-                else
-                {
-                    Debug.Log("<color=green>[BAÞARILI]</color> HapticManager bulundu, PlayWarning metoduna gidiliyor!");
-                    HapticManager.Instance.PlayWarning();
-                }
+                if (record.Box.IsPushed && HapticManager.Instance != null) HapticManager.Instance.PlayWarning();
+                LogInteraction(direction, record);
             }
 
-            LogInteraction(direction, record);
-            InputHandler.Instance.IsInputLocked = true;
+            if (InputHandler.Instance != null) InputHandler.Instance.IsInputLocked = true;
 
             float duration = isIceSlide ? currentIceSlideDuration : currentMoveDuration;
             gameView.AnimateMove(record, OnAnimationComplete, duration);
 
-            UpdateHUD();
+            if (result == MoveResult.Success) UpdateHUD();
+        }
+        else
+        {
+            if (InputHandler.Instance != null) InputHandler.Instance.IsInputLocked = false;
         }
     }
 
@@ -157,7 +151,7 @@ public class GameController : MonoBehaviour
         if (currentState.TryUndo(out MoveRecord record))
         {
             isUndoing = true;
-            InputHandler.Instance.IsInputLocked = true;
+            if (InputHandler.Instance != null) InputHandler.Instance.IsInputLocked = true;
 
             float duration = currentConfig != null ? currentConfig.levels[currentLevelIndex].moveDuration : 0.15f;
             gameView.AnimateUndo(record, OnAnimationComplete, duration);
@@ -221,6 +215,11 @@ public class GameController : MonoBehaviour
         if (currentState.IsSolved())
         {
             if (InputHandler.Instance != null) InputHandler.Instance.IsInputLocked = true;
+
+            if (DataManager.Instance != null)
+            {
+                DataManager.Instance.SaveBestMove(currentLevelIndex, currentState.MoveCount);
+            }
 
             int bonus = currentConfig != null ? currentConfig.levels[currentLevelIndex].completionBonusGold : 100;
             if (EconomyManager.Instance != null) EconomyManager.Instance.AddGold(bonus);
@@ -309,7 +308,13 @@ public class GameController : MonoBehaviour
     {
         if (hudController != null && currentState != null)
         {
-            hudController.UpdateCounters(currentState.MoveCount, currentState.PushCount, 0, currentMaxMoves);
+            int bestMove = 0;
+            if (DataManager.Instance != null)
+            {
+                bestMove = DataManager.Instance.GetBestMove(currentLevelIndex);
+            }
+
+            hudController.UpdateCounters(currentState.MoveCount, currentState.PushCount, bestMove, currentMaxMoves);
         }
     }
 

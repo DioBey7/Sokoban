@@ -27,12 +27,12 @@ public class EconomyHUD : MonoBehaviour
     {
         if (undoButtonText != null)
         {
-            undoButtonText.text = $"Undo: {EconomyManager.Instance.UndoCount}";
+            undoButtonText.text = $"Undo: {GameUtils.FormatNumber(EconomyManager.Instance.UndoCount)}";
         }
 
         if (goldAmountText != null)
         {
-            goldAmountText.text = EconomyManager.Instance.GoldCount.ToString();
+            goldAmountText.text = GameUtils.FormatNumber(EconomyManager.Instance.GoldCount);
         }
     }
 }

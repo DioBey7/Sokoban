@@ -9,6 +9,7 @@ public class GameView : MonoBehaviour
 
     private Dictionary<Vector2Int, GameObject> boxViews;
     private Dictionary<Vector2Int, GameObject> brokenBoxViews;
+    private Dictionary<Vector2Int, GameObject> matchedBoxViews;
     private Dictionary<Vector2Int, GameObject> doorViews;
     private Dictionary<Vector2Int, bool> doorStates;
     private Dictionary<Vector2Int, GoalView> goalViews;
@@ -30,6 +31,7 @@ public class GameView : MonoBehaviour
 
         boxViews = payload.BoxViews;
         brokenBoxViews = new Dictionary<Vector2Int, GameObject>();
+        matchedBoxViews = new Dictionary<Vector2Int, GameObject>();
         doorViews = payload.DoorViews;
         doorStates = new Dictionary<Vector2Int, bool>();
         goalViews = new Dictionary<Vector2Int, GoalView>();
@@ -172,7 +174,10 @@ public class GameView : MonoBehaviour
             Vector2 start = GridToWorld(record.Player.StartPos);
             seq.Insert(0, playerView.DOAnchorPos(entry, portalDur * 0.5f).SetEase(Ease.InBack))
                .Insert(0, playerView.DOScale(Vector3.zero, portalDur * 0.5f).SetEase(Ease.InBack))
-               .InsertCallback(portalDur * 0.5f, () => { if (HapticManager.Instance != null) HapticManager.Instance.PlayPortalReject(); })
+               .InsertCallback(portalDur * 0.5f, () => {
+                   if (HapticManager.Instance != null) HapticManager.Instance.PlayPortalReject();
+                   if (SoundManager.Instance != null) SoundManager.Instance.PlaySFX(SoundManager.Instance.portalRejectSound);
+               })
                .Insert(portalDur * 0.5f, playerView.DOAnchorPos(start, portalDur * 0.5f).SetEase(Ease.OutBack))
                .Insert(portalDur * 0.5f, playerView.DOScale(Vector3.one, portalDur * 0.5f).SetEase(Ease.OutBack));
         }
@@ -186,15 +191,19 @@ public class GameView : MonoBehaviour
 
             Vector2 bEntry = GridToWorld(record.Box.PortalEntry);
             Vector2 bStart = GridToWorld(record.Box.StartPos);
-            seq.Insert(0, boxRect.DOAnchorPos(bEntry, portalDur * 0.5f).SetEase(Ease.InBack))
-               .Insert(0, box.transform.DOScale(Vector3.zero, portalDur * 0.5f).SetEase(Ease.InBack))
-               .InsertCallback(portalDur * 0.5f, () => { if (HapticManager.Instance != null) HapticManager.Instance.PlayPortalReject(); })
-               .Insert(portalDur * 0.5f, boxRect.DOAnchorPos(bStart, portalDur * 0.5f).SetEase(Ease.OutBack))
-               .Insert(portalDur * 0.5f, box.transform.DOScale(Vector3.one, portalDur * 0.5f).SetEase(Ease.OutBack));
+
+            seq.Insert(0, boxRect.DOAnchorPos(bEntry, duration).SetEase(Ease.OutQuad))
+               .Insert(0, box.transform.DOScale(Vector3.zero, duration).SetEase(Ease.InQuad))
+               .InsertCallback(duration, () => {
+                   if (HapticManager.Instance != null) HapticManager.Instance.PlayPortalReject();
+                   if (SoundManager.Instance != null) SoundManager.Instance.PlaySFX(SoundManager.Instance.portalRejectSound);
+               })
+               .Insert(duration, boxRect.DOAnchorPos(bStart, portalDur * 0.5f).SetEase(Ease.OutBack))
+               .Insert(duration, box.transform.DOScale(Vector3.one, portalDur * 0.5f).SetEase(Ease.OutBack));
 
             Vector2 pStart = GridToWorld(record.Player.StartPos);
-            seq.Insert(0, playerView.DOAnchorPos(bStart, portalDur * 0.5f).SetEase(Ease.OutQuad))
-               .Insert(portalDur * 0.5f, playerView.DOAnchorPos(pStart, portalDur * 0.5f).SetEase(Ease.OutQuad));
+            seq.Insert(0, playerView.DOAnchorPos(bStart, duration).SetEase(Ease.OutQuad))
+               .Insert(duration, playerView.DOAnchorPos(pStart, duration).SetEase(Ease.OutQuad));
         }
         else
         {
@@ -204,7 +213,10 @@ public class GameView : MonoBehaviour
                 Vector2 exit = GridToWorld(record.Player.EndPos);
                 seq.Insert(0, playerView.DOAnchorPos(entry, portalDur * 0.5f).SetEase(Ease.InBack))
                    .Insert(0, playerView.DOScale(Vector3.zero, portalDur * 0.5f).SetEase(Ease.InBack))
-                   .InsertCallback(portalDur * 0.5f, () => playerView.anchoredPosition = exit)
+                   .InsertCallback(portalDur * 0.5f, () => {
+                       playerView.anchoredPosition = exit;
+                       if (SoundManager.Instance != null) SoundManager.Instance.PlaySFX(SoundManager.Instance.portalTeleportSound);
+                   })
                    .Insert(portalDur * 0.5f, playerView.DOScale(Vector3.one, portalDur * 0.5f).SetEase(Ease.OutBack));
             }
             else
@@ -231,10 +243,14 @@ public class GameView : MonoBehaviour
                 {
                     Vector2 bEntry = GridToWorld(record.Box.PortalEntry);
                     Vector2 bExit = GridToWorld(record.Box.EndPos);
-                    seq.Insert(0, boxRect.DOAnchorPos(bEntry, portalDur * 0.5f).SetEase(Ease.InBack))
-                       .Insert(0, box.transform.DOScale(Vector3.zero, portalDur * 0.5f).SetEase(Ease.InBack))
-                       .InsertCallback(portalDur * 0.5f, () => boxRect.anchoredPosition = bExit)
-                       .Insert(portalDur * 0.5f, box.transform.DOScale(Vector3.one, portalDur * 0.5f).SetEase(Ease.OutBack));
+
+                    seq.Insert(0, boxRect.DOAnchorPos(bEntry, duration).SetEase(Ease.OutQuad))
+                       .Insert(0, box.transform.DOScale(Vector3.zero, duration).SetEase(Ease.InQuad))
+                       .InsertCallback(duration, () => {
+                           boxRect.anchoredPosition = bExit;
+                           if (SoundManager.Instance != null) SoundManager.Instance.PlaySFX(SoundManager.Instance.portalTeleportSound);
+                       })
+                       .Insert(duration, box.transform.DOScale(Vector3.one, portalDur * 0.5f).SetEase(Ease.OutBack));
                 }
                 else
                 {
@@ -258,6 +274,32 @@ public class GameView : MonoBehaviour
                     breakSeq.Append(box.transform.DOScale(Vector3.zero, 0.2f).SetEase(Ease.InBack));
 
                     seq.Insert(duration, breakSeq);
+                }
+                else if (record.Box.IsMatchedGoal)
+                {
+                    if (HapticManager.Instance != null) HapticManager.Instance.PlaySuccess();
+
+                    if (!matchedBoxViews.ContainsKey(record.Box.EndPos))
+                    {
+                        matchedBoxViews.Add(record.Box.EndPos, box);
+                    }
+
+                    BoxView bv = box.GetComponent<BoxView>();
+                    if (bv != null) bv.UpdateVisuals(true, record.Box.Snapshot.Durability, record.Box.EndPos, HandleGoalVisualState);
+
+                    seq.InsertCallback(duration + 0.3f, () => {
+                        if (SoundManager.Instance != null) SoundManager.Instance.PlaySFX(SoundManager.Instance.boxMatchSound);
+                    });
+
+                    Sequence matchSeq = DOTween.Sequence();
+                    matchSeq.Append(box.transform.DOScale(Vector3.zero, 0.3f).SetEase(Ease.InBack));
+
+                    if (goalViews != null && goalViews.TryGetValue(record.Box.EndPos, out GoalView goalView))
+                    {
+                        matchSeq.Join(goalView.transform.DOScale(Vector3.zero, 0.3f).SetEase(Ease.InBack));
+                    }
+
+                    seq.Insert(duration, matchSeq);
                 }
                 else
                 {
@@ -291,7 +333,11 @@ public class GameView : MonoBehaviour
         {
             Vector2 entry = GridToWorld(record.Player.PortalEntry);
             Vector2 start = GridToWorld(record.Player.StartPos);
-            seq.InsertCallback(0f, () => { playerView.anchoredPosition = entry; playerView.localScale = Vector3.zero; })
+            seq.InsertCallback(0f, () => {
+                playerView.anchoredPosition = entry;
+                playerView.localScale = Vector3.zero;
+                if (SoundManager.Instance != null) SoundManager.Instance.PlaySFX(SoundManager.Instance.portalTeleportSound);
+            })
                .Insert(0f, playerView.DOScale(Vector3.one, portalDur * 0.5f).SetEase(Ease.OutBack))
                .Insert(0f, playerView.DOAnchorPos(start, portalDur * 0.5f).SetEase(Ease.OutQuad));
         }
@@ -310,6 +356,18 @@ public class GameView : MonoBehaviour
                 box.SetActive(true);
                 box.transform.localScale = Vector3.one;
             }
+            else if (record.Box.IsMatchedGoal)
+            {
+                box = matchedBoxViews[record.Box.EndPos];
+                matchedBoxViews.Remove(record.Box.EndPos);
+                box.SetActive(true);
+                box.transform.localScale = Vector3.one;
+
+                if (goalViews != null && goalViews.TryGetValue(record.Box.EndPos, out GoalView goalView))
+                {
+                    goalView.transform.DOScale(Vector3.one, 0.3f).SetEase(Ease.OutBack);
+                }
+            }
             else
             {
                 box = boxViews[record.Box.EndPos];
@@ -324,9 +382,13 @@ public class GameView : MonoBehaviour
             {
                 Vector2 entry = GridToWorld(record.Box.PortalEntry);
                 Vector2 start = GridToWorld(record.Box.StartPos);
-                seq.InsertCallback(0f, () => { boxRect.anchoredPosition = entry; box.transform.localScale = Vector3.zero; })
+                seq.InsertCallback(0f, () => {
+                    boxRect.anchoredPosition = entry;
+                    box.transform.localScale = Vector3.zero;
+                    if (SoundManager.Instance != null) SoundManager.Instance.PlaySFX(SoundManager.Instance.portalTeleportSound);
+                })
                    .Insert(0f, box.transform.DOScale(Vector3.one, portalDur * 0.5f).SetEase(Ease.OutBack))
-                   .Insert(0f, boxRect.DOAnchorPos(start, portalDur * 0.5f).SetEase(Ease.OutQuad));
+                   .Insert(0f, boxRect.DOAnchorPos(start, duration).SetEase(Ease.OutQuad));
             }
             else
             {

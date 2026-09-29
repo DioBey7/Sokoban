@@ -4,7 +4,6 @@ using UnityEngine.UI;
 public class GoalView : MonoBehaviour
 {
     [SerializeField] private GameObject defaultVisual;
-    [SerializeField] private GameObject whiteVisual;
 
     private void Awake() 
     {
@@ -57,11 +56,6 @@ public class GoalView : MonoBehaviour
         {
             Image img = GetComponent<Image>();
             if (img != null) img.enabled = !isCompleted;
-        }
-
-        if (whiteVisual != null)
-        {
-            whiteVisual.SetActive(isCompleted);
         }
     }
 }

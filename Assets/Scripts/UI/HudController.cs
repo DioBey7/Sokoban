@@ -29,7 +29,7 @@ public class HudController : MonoBehaviour
 
         if (bestText != null)
         {
-            if (bestScore == int.MaxValue)
+            if (bestScore == int.MaxValue || bestScore <= 0)
             {
                 bestText.text = "BEST: --";
             }

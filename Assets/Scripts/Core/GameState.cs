@@ -27,6 +27,7 @@ public struct BoxMoveRecord
     public bool IsTeleported;
     public Vector2Int PortalEntry;
     public bool IsPortalRejected;
+    public bool IsMatchedGoal;
 }
 
 public struct MoveRecord
@@ -40,6 +41,9 @@ public class GameState
     public StaticElement[,] StaticGrid { get; private set; }
     public Dictionary<Vector2Int, BoxData> Boxes { get; private set; }
     public Dictionary<Vector2Int, ObjectColor> Goals { get; private set; }
+
+    public HashSet<Vector2Int> CompletedGoals { get; private set; }
+
     public Dictionary<Vector2Int, int> Doors { get; private set; }
     public Dictionary<Vector2Int, int> Switches { get; private set; }
     public Dictionary<Vector2Int, int> Portals { get; private set; }
@@ -55,6 +59,7 @@ public class GameState
         StaticGrid = staticGrid;
         Boxes = new Dictionary<Vector2Int, BoxData>(initialBoxes);
         Goals = new Dictionary<Vector2Int, ObjectColor>(goals);
+        CompletedGoals = new HashSet<Vector2Int>();
         Doors = new Dictionary<Vector2Int, int>(doors);
         Switches = new Dictionary<Vector2Int, int>(switches);
         Portals = new Dictionary<Vector2Int, int>(portals);
@@ -62,11 +67,12 @@ public class GameState
         undoStack = new Stack<MoveRecord>();
     }
 
-    private GameState(StaticElement[,] staticGrid, Dictionary<Vector2Int, BoxData> boxes, Vector2Int player, Dictionary<Vector2Int, ObjectColor> goals, Dictionary<Vector2Int, int> doors, Dictionary<Vector2Int, int> switches, Dictionary<Vector2Int, int> portals, int moveCount, int pushCount)
+    private GameState(StaticElement[,] staticGrid, Dictionary<Vector2Int, BoxData> boxes, Vector2Int player, Dictionary<Vector2Int, ObjectColor> goals, HashSet<Vector2Int> completedGoals, Dictionary<Vector2Int, int> doors, Dictionary<Vector2Int, int> switches, Dictionary<Vector2Int, int> portals, int moveCount, int pushCount)
     {
         StaticGrid = staticGrid;
         Boxes = boxes;
         Goals = goals;
+        CompletedGoals = new HashSet<Vector2Int>(completedGoals);
         Doors = doors;
         Switches = switches;
         Portals = portals;
@@ -98,11 +104,6 @@ public class GameState
 
         if (Boxes.TryGetValue(target, out BoxData originalBox))
         {
-            if (Goals.TryGetValue(target, out ObjectColor currentGoalColor))
-            {
-                if (currentGoalColor == ObjectColor.None || currentGoalColor == originalBox.Color) return MoveResult.Blocked;
-            }
-
             Vector2Int boxTarget = target + dir;
             bool boxTeleported = false;
             Vector2Int boxPortalEntry = boxTarget;
@@ -132,7 +133,7 @@ public class GameState
                 record = new MoveRecord
                 {
                     Player = new PlayerMoveRecord { StartPos = startPlayer, EndPos = startPlayer },
-                    Box = new BoxMoveRecord { IsPushed = true, StartPos = target, EndPos = target, IsPortalRejected = true, PortalEntry = boxPortalEntry }
+                    Box = new BoxMoveRecord { IsPushed = true, StartPos = target, EndPos = target, IsPortalRejected = true, PortalEntry = boxPortalEntry, IsMatchedGoal = false }
                 };
                 return MoveResult.PortalRejected;
             }
@@ -140,6 +141,7 @@ public class GameState
             if (IsObstacle(boxTarget) || Boxes.ContainsKey(boxTarget)) return MoveResult.Blocked;
 
             bool boxBroke = false;
+            bool isMatchedGoal = false;
             BoxData modifiedBox = originalBox;
             Boxes.Remove(target);
 
@@ -149,7 +151,18 @@ public class GameState
                 if (modifiedBox.Durability <= 0) boxBroke = true;
             }
 
-            if (!boxBroke) Boxes.Add(boxTarget, modifiedBox);
+            if (!boxBroke)
+            {
+                if (Goals.TryGetValue(boxTarget, out ObjectColor goalColor) && (goalColor == ObjectColor.None || goalColor == modifiedBox.Color))
+                {
+                    isMatchedGoal = true;
+                    CompletedGoals.Add(boxTarget);
+                }
+                else
+                {
+                    Boxes.Add(boxTarget, modifiedBox);
+                }
+            }
 
             Vector2Int playerTarget = target;
             bool playerTeleported = false;
@@ -162,7 +175,7 @@ public class GameState
             record = new MoveRecord
             {
                 Player = new PlayerMoveRecord { StartPos = startPlayer, EndPos = playerTarget, IsTeleported = playerTeleported, PortalEntry = playerPortalEntry },
-                Box = new BoxMoveRecord { IsPushed = true, StartPos = target, EndPos = boxTarget, Snapshot = originalBox, IsBroken = boxBroke, IsTeleported = boxTeleported, PortalEntry = boxPortalEntry }
+                Box = new BoxMoveRecord { IsPushed = true, StartPos = target, EndPos = boxTarget, Snapshot = originalBox, IsBroken = boxBroke, IsTeleported = boxTeleported, PortalEntry = boxPortalEntry, IsMatchedGoal = isMatchedGoal }
             };
 
             undoStack.Push(record);
@@ -229,7 +242,17 @@ public class GameState
 
         if (record.Box.IsPushed)
         {
-            if (!record.Box.IsBroken) Boxes.Remove(record.Box.EndPos);
+            if (!record.Box.IsBroken)
+            {
+                if (record.Box.IsMatchedGoal)
+                {
+                    CompletedGoals.Remove(record.Box.EndPos);
+                }
+                else
+                {
+                    Boxes.Remove(record.Box.EndPos);
+                }
+            }
             Boxes.Add(record.Box.StartPos, record.Box.Snapshot);
             PushCount--;
         }
@@ -246,7 +269,7 @@ public class GameState
             if (kvp.Value == doorID)
             {
                 Vector2Int switchPos = kvp.Key;
-                if (Player == switchPos || Boxes.ContainsKey(switchPos)) return true;
+                if (Player == switchPos || Boxes.ContainsKey(switchPos) || CompletedGoals.Contains(switchPos)) return true;
             }
         }
         return false;
@@ -265,18 +288,12 @@ public class GameState
     public GameState Clone()
     {
         Dictionary<Vector2Int, BoxData> clonedBoxes = new Dictionary<Vector2Int, BoxData>(Boxes);
-        return new GameState(StaticGrid, clonedBoxes, Player, Goals, Doors, Switches, Portals, MoveCount, PushCount);
+        return new GameState(StaticGrid, clonedBoxes, Player, Goals, CompletedGoals, Doors, Switches, Portals, MoveCount, PushCount);
     }
 
     public bool IsSolved()
     {
         if (Goals.Count == 0) return false;
-
-        foreach (var goal in Goals)
-        {
-            if (!Boxes.TryGetValue(goal.Key, out BoxData boxOnGoal)) return false;
-            if (goal.Value != ObjectColor.None && boxOnGoal.Color != goal.Value) return false;
-        }
-        return true;
+        return CompletedGoals.Count == Goals.Count;
     }
 }

@@ -73,4 +73,14 @@ public class EconomyManager : MonoBehaviour
         PlayerPrefs.Save();
         OnEconomyChanged?.Invoke();
     }
+
+    public string GetFormattedGold()
+    {
+        return GameUtils.FormatNumber(GoldCount);
+    }
+
+    public string GetFormattedUndo()
+    {
+        return GameUtils.FormatNumber(UndoCount);
+    }
 }

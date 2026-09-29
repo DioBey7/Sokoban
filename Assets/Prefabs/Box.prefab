@@ -38,7 +38,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 100, y: 100}
+  m_SizeDelta: {x: 88, y: 94}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1161215830566373831
 MonoBehaviour:
@@ -66,7 +66,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   boxVisual: {fileID: 382082851513946060}
   durabilityText: {fileID: 0}
-  goalSuccessSound: {fileID: 0}
 --- !u!222 &2993261533212579378
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -87,6 +86,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ed0c1bfbe367d404daa8693041b53e33, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  kind: 2
   boxData:
     Type: 0
     Color: 1
@@ -123,10 +123,10 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 5421188548398004480}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.5, y: 0.5}
-  m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 100, y: 100}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 1, y: 1}
+  m_AnchoredPosition: {x: 0, y: -2.3}
+  m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &534852001257926017
 CanvasRenderer:

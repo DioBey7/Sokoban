@@ -13,6 +13,10 @@ public class SoundManager : MonoBehaviour
     public AudioClip errorSound;
     public AudioClip uiClickSound;
 
+    public AudioClip boxMatchSound;
+    public AudioClip portalRejectSound;
+    public AudioClip portalTeleportSound;
+
     private void Awake()
     {
         if (Instance != null && Instance != this)

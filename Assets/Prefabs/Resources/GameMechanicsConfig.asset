@@ -139,12 +139,12 @@ MonoBehaviour:
     iceSlideDuration: 0.12
     completionBonusGold: 300
   - levelPrefab: {fileID: 3193882423151372823, guid: 37ac9465094285242bb1581bdb222559, type: 3}
-    maxMoves: 36
+    maxMoves: 40
     moveDuration: 0.15
     iceSlideDuration: 0.12
     completionBonusGold: 300
   - levelPrefab: {fileID: 3193882423151372823, guid: 3aaf5caab0e61764aa1f649644e212da, type: 3}
-    maxMoves: 36
+    maxMoves: 45
     moveDuration: 0.15
     iceSlideDuration: 0.12
     completionBonusGold: 300

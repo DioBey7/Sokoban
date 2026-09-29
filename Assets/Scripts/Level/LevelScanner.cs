@@ -65,6 +65,10 @@ public static class LevelScanner
         Dictionary<Vector2Int, GameObject> boxViews = new Dictionary<Vector2Int, GameObject>();
         Dictionary<Vector2Int, GameObject> doorViews = new Dictionary<Vector2Int, GameObject>();
 
+        List<Transform> floorTiles = new List<Transform>();
+        List<Transform> walls = new List<Transform>();
+        List<Transform> interactables = new List<Transform>();
+
         foreach (var gridObj in gridObjects)
         {
             RectTransform rect = gridObj.GetComponent<RectTransform>();
@@ -80,24 +84,30 @@ public static class LevelScanner
                 staticGrid[x, y] = StaticElement.Door;
                 doors[pos] = doorObj.linkID;
                 doorViews[pos] = gridObj.gameObject;
+                interactables.Add(gridObj.transform);
             }
             else if (gridObj is SwitchGridObject switchObj)
             {
                 staticGrid[x, y] = StaticElement.Switch;
                 switches[pos] = switchObj.linkID;
+                interactables.Add(gridObj.transform);
             }
             else if (gridObj is PortalGridObject portalObj)
             {
                 portals[pos] = portalObj.linkID;
+                interactables.Add(gridObj.transform);
             }
             else if (gridObj is StaticGridObject staticObj)
             {
                 staticGrid[x, y] = staticObj.staticElement;
+                if (staticObj.staticElement == StaticElement.Wall) walls.Add(gridObj.transform);
+                else floorTiles.Add(gridObj.transform);
             }
             else if (gridObj is GoalGridObject goalObj)
             {
                 staticGrid[x, y] = StaticElement.Goal;
                 goals[pos] = goalObj.color;
+                interactables.Add(gridObj.transform);
             }
             else if (gridObj is BoxGridObject boxObj)
             {
@@ -163,6 +173,9 @@ public static class LevelScanner
             }
         }
 
+        float localPayloadMinX = pRect.anchoredPosition.x - (pxGrid * CELL_SIZE);
+        float localPayloadMaxY = pRect.anchoredPosition.y + (pyGrid * CELL_SIZE);
+
         Transform floorGridTransform = null;
         foreach (Transform t in levelRoot.GetComponentsInChildren<Transform>(true))
         {
@@ -178,8 +191,7 @@ public static class LevelScanner
             RectTransform floorGridRect = floorGridTransform.GetComponent<RectTransform>();
             if (floorGridRect != null)
             {
-                floorGridTransform.SetParent(levelRoot);
-                floorGridTransform.SetAsFirstSibling();
+                floorGridTransform.SetParent(playerObj.transform.parent);
 
                 floorGridRect.anchorMin = new Vector2(0.5f, 0.5f);
                 floorGridRect.anchorMax = new Vector2(0.5f, 0.5f);
@@ -188,11 +200,11 @@ public static class LevelScanner
                 int innerCols = (maxInnerX - minInnerX) + 1;
                 int innerRows = (maxInnerY - minInnerY) + 1;
 
-                float centerX = minX + ((minInnerX + maxInnerX) / 2f) * CELL_SIZE;
-                float centerY = maxY - ((minInnerY + maxInnerY) / 2f) * CELL_SIZE;
+                float centerX = localPayloadMinX + ((minInnerX + maxInnerX) / 2f) * CELL_SIZE;
+                float centerY = localPayloadMaxY - ((minInnerY + maxInnerY) / 2f) * CELL_SIZE;
 
                 floorGridRect.sizeDelta = new Vector2(innerCols * CELL_SIZE, innerRows * CELL_SIZE);
-                floorGridRect.localPosition = new Vector3(centerX, centerY, 0f);
+                floorGridRect.anchoredPosition = new Vector2(centerX, centerY);
 
                 UnityEngine.UI.RawImage rawImg = floorGridTransform.GetComponent<UnityEngine.UI.RawImage>();
                 if (rawImg != null)
@@ -202,10 +214,13 @@ public static class LevelScanner
             }
         }
 
-        GameState newState = new GameState(staticGrid, boxes, playerStartPos, goals, doors, switches, portals);
+        if (floorGridTransform != null) floorGridTransform.SetAsFirstSibling();
+        foreach (var t in floorTiles) t.SetAsLastSibling();
 
-        float localPayloadMinX = pRect.anchoredPosition.x - (pxGrid * CELL_SIZE);
-        float localPayloadMaxY = pRect.anchoredPosition.y + (pyGrid * CELL_SIZE);
+        foreach (var w in walls) w.SetAsLastSibling();
+        foreach (var i in interactables) i.SetAsLastSibling();
+
+        GameState newState = new GameState(staticGrid, boxes, playerStartPos, goals, doors, switches, portals);
 
         return new LevelDataPayload
         {

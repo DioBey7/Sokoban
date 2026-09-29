@@ -1,225 +1,201 @@
-# Sokoban
+# Sokoban Mobile
 
-A modern implementation of the classic Sokoban puzzle game built with **Unity** and **C#**. This project demonstrates solid game development practices including architecture patterns, UI management, and gameplay mechanics.
+A mobile-first puzzle game inspired by the classic Sokoban concept, developed in Unity using C#. The project focuses on smooth touch controls, polished UI, responsive gameplay, and a clean architecture suitable for mobile deployment.
 
-## 📋 Table of Contents
+This repository demonstrates a complete gameplay loop, level progression, failure/retry flow, and mobile game implementation practices that are relevant for game development portfolios and internship/job applications.
 
-- [Overview](#overview)
-- [Features](#features)
-- [Tech Stack](#tech-stack)
-- [Project Structure](#project-structure)
-- [Getting Started](#getting-started)
-- [Game Mechanics](#game-mechanics)
-- [Architecture](#architecture)
-- [Key Systems](#key-systems)
-- [Contributing](#contributing)
+## Overview
 
-## 🎮 Overview
+Sokoban is a logic-based puzzle game where the player pushes crates onto target locations. The goal is to solve each level efficiently while managing movement, obstacles, and retries.
 
-Sokoban is a classic puzzle game where the player must push boxes onto designated storage locations. This implementation provides a polished gaming experience with modern UI interactions, smooth animations, and proper level management.
+This version is designed with mobile gameplay in mind, including simplified touch-friendly controls, responsive interfaces, and a streamlined game flow suitable for Android and other mobile platforms.
 
-The project showcases professional game development patterns including singleton management, event-driven architecture, and modular component design.
+## Why This Project Matters
 
-## ✨ Features
+This project showcases:
 
-- **Multiple Levels**: Structured level management system with proper progression
-- **Smooth Animations**: Polished transitions and visual feedback using DOTween
-- **Responsive UI**: Clean, modern interface with fail state handling
-- **Grid-Based Level Editor**: Visual gizmo system for level design
-- **Mobile-Ready**: Support for mobile ads integration and responsive layouts
-- **Debug Utilities**: In-game debug console for development and testing
-- **Professional Polish**: Animation tweens, UI state management, and visual feedback
+- Unity game development with C#
+- Game systems design for mobile environments
+- UI/UX implementation for gameplay and failure states
+- Level-based mechanics and progression logic
+- Responsive project structure and code organization
+- Integration of ads, tools, and Unity packages for production-ready mobile projects
 
-## 🛠️ Tech Stack
+## Features
 
-| Technology | Purpose |
-|-----------|---------|
-| **Unity** | Game engine |
-| **C#** | Primary scripting language |
-| **DOTween** | Smooth animations and transitions |
-| **TextMesh Pro** | Advanced UI text rendering |
-| **Google Mobile Ads** | Mobile advertisement integration |
-| **ShaderLab / HLSL** | Custom graphics and shader effects |
+- Classic Sokoban gameplay with push-and-solve mechanics
+- Mobile-oriented controls and user interface
+- Level-based progression and retry flow
+- Failure popup system with smooth animations
+- Responsive UI states and transition effects
+- Grid-based level design and visualization
+- Unity project structure prepared for platform extension
+- Mobile advertising integration support
+- Debugging tools and developer utilities
 
-**Language Composition:**
-- C# (94%)
-- ShaderLab (4.4%)
-- Python (0.5%)
-- HLSL (0.4%)
-- Swift & Objective-C (platform-specific integrations)
+## Tech Stack
 
-## 📁 Project Structure
+- Unity Engine
+- C#
+- DOTween for animation and UI transitions
+- TextMesh Pro for UI text rendering
+- Google Mobile Ads for monetization support
+- ShaderLab / HLSL for visual polish
 
-```
+### Language Composition
+
+- C#: 94%
+- ShaderLab: 4.4%
+- Python: 0.5%
+- HLSL: 0.4%
+- Swift / Objective-C / Other: minimal platform-specific support
+
+## Mobile Game Focus
+
+This project is built as a mobile game, which means the design priorities include:
+
+- Touch-friendly input patterns
+- Lightweight gameplay loops
+- Clean, readable interfaces on smaller screens
+- Reduced visual clutter and clear UI feedback
+- Control responsiveness and smooth transitions
+- Optimized structure for future mobile builds and deployment
+
+## Project Structure
+
+```text
 Sokoban/
 ├── Assets/
 │   ├── Scripts/
 │   │   ├── Level/
-│   │   │   └── LevelRoot.cs           # Level management and grid visualization
+│   │   │   └── LevelRoot.cs
 │   │   ├── UI/
-│   │   │   └── FailPopupController.cs # Fail state and retry UI
-│   │   └── [Game Logic Scripts]
-│   ├── Resources/                     # Game assets and materials
-│   ├── Feel/                          # Third-party VFX and tools
-│   ├── GoogleMobileAds/               # Mobile ads integration
-│   ├── Plugins/                       # Third-party plugins
-│   └── TextMesh Pro/                  # UI text assets
-├── Packages/                          # Unity package dependencies
-├── ProjectSettings/                   # Unity project configuration
-└── README.md                          # This file
+│   │   │   └── FailPopupController.cs
+│   │   └── Game logic scripts
+│   ├── Plugins/
+│   ├── Feel/
+│   ├── GoogleMobileAds/
+│   ├── TextMesh Pro/
+│   └── Resources/
+├── Packages/
+├── ProjectSettings/
+├── README.md
+├── .gitignore
+├── .vsconfig
+└── LICENSE (if added later)
 ```
 
-## 🚀 Getting Started
+## Gameplay Mechanics
+
+The core loop is based on the classic Sokoban formula:
+
+- Move the player across the grid
+- Push boxes into open spaces
+- Place each box on a destination tile
+- Complete the level when all objective tiles are filled
+- Retry after mistakes with instant feedback
+
+## Key Systems
+
+### Level System
+The level structure is built around a grid-based layout, with logic for boundaries and visual debugging. The code supports object organization and layout refinement during development.
+
+### UI System
+A dedicated fail popup system provides a polished retry flow. It handles visibility, animation, and restart logic for a better player experience.
+
+### Mobile Integration
+The project includes mobile-oriented tooling and integrations such as advertising support and Unity packages that fit a real-world mobile game workflow.
+
+## Getting Started
 
 ### Prerequisites
 
-- **Unity 2022.1+** (or compatible version)
-- **C# 9.0+**
+- Unity 2022.1 or newer
+- C# development knowledge
 - Git
 
 ### Installation
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/DioBey7/Sokoban.git
-   cd Sokoban
-   ```
+1. Clone the repository
 
-2. Open the project in Unity:
-   - Launch Unity Hub
-   - Click "Open Project"
-   - Select the Sokoban folder
-   - Let Unity import all assets and dependencies
-
-3. Open the main scene:
-   - Navigate to `Assets/Scenes/` (if available)
-   - Open the main gameplay scene
-
-4. Press **Play** to test the game
-
-## 🎯 Game Mechanics
-
-### Core Gameplay
-
-- **Player Movement**: Navigate the grid using directional input
-- **Box Pushing**: Push boxes toward designated storage locations
-- **Goal**: Place all boxes on their storage targets to complete the level
-- **Level Progression**: Complete levels to progress through increasingly difficult puzzles
-
-### Controls
-
-- **Arrow Keys / WASD**: Move player
-- **Mouse Click**: Alternative input (if configured)
-- **Retry Button**: Restart current level on failure
-
-## 🏗️ Architecture
-
-### Key Patterns
-
-#### Singleton Pattern
-```csharp
-public class FailPopupController : MonoBehaviour
-{
-    public static FailPopupController Instance { get; private set; }
-    // Ensures single instance for UI management
-}
+```bash
+git clone https://github.com/DioBey7/Sokoban.git
+cd Sokoban
 ```
 
-#### Component-Based Design
-- `LevelRoot`: Manages level structure and grid visualization
-- `FailPopupController`: Handles failure UI state
-- Grid-based game objects for modular gameplay elements
+2. Open the project in Unity Hub
 
-#### UI State Management
-- Canvas-based UI with proper layer management
-- DOTween animations for smooth transitions
-- Event-driven retry and restart mechanisms
+3. Open the project folder from the repository root
 
-### Level System
+4. Let Unity import dependencies and packages
 
-The `LevelRoot` component provides:
-- Grid-based level layout validation
-- Visual gizmo debugging for level bounds
-- Dynamic grid rendering in the editor
+5. Press Play to run the game in the editor
 
-```csharp
-private void OnDrawGizmos()
-{
-    // Visualizes game grid for level design
-}
-```
+## Controls
 
-## 🔧 Key Systems
+- Movement: WASD or arrow keys in the editor
+- Retry: fail popup button / restart flow
+- Mobile-ready build: designed to be adapted to touch input and touch-friendly UI
 
-### UI Management
-- **FailPopupController**: Singleton managing failure states and retry functionality
-- **Canvas Group Animations**: DOTween integration for smooth fade effects
-- **Button Events**: Proper event subscription and cleanup
+## Architecture Highlights
 
-### Level Management
-- **LevelRoot**: Hierarchical level structure with grid visualization
-- **Dynamic Grid Calculation**: Automatically computes level bounds
-- **Editor Gizmos**: Real-time visual feedback during level design
+This project shows practical game design principles, including:
 
-### Animation System
-- **DOTween Integration**: Smooth transitions and tweens
-- **Fade Effects**: Canvas group alpha animations
-- **Professional Polish**: Frame-rate independent animations
+- Component-based object structure
+- Object lifecycle handling in Unity
+- Separation between gameplay logic and UI logic
+- Simple event-driven retry flow
+- Reusable systems for future feature expansion
 
-## 📚 Learning Outcomes
+## Skills Demonstrated
 
-This project demonstrates:
+This project reflects skills in:
 
-- ✅ **OOP Principles**: Proper encapsulation, inheritance, and composition
-- ✅ **Design Patterns**: Singleton, Component patterns, and MVC-inspired architecture
-- ✅ **Game Development**: Proper scene management, UI handling, and game state
-- ✅ **C# Best Practices**: Proper null checking, event management, and lifecycle methods
-- ✅ **Editor Tools**: Custom gizmos and inspector integration
-- ✅ **Performance**: Efficient grid-based systems and component caching
-- ✅ **Mobile Integration**: Cross-platform compatibility considerations
+- Unity and C# game development
+- Mobile game design and user flow
+- Game UI implementation
+- Problem-solving for logic puzzle gameplay
+- Project organization and code structure
+- Integration of game tools and platform services
 
-## 🎓 Professional Development Notes
+## Current Status
 
-This codebase is structured for:
-- **Code Reusability**: Modular components that can be extended
-- **Maintainability**: Clear separation of concerns and proper naming conventions
-- **Scalability**: Easy to add new levels, UI states, and gameplay features
-- **Testing**: Component isolation enables unit testing and debugging
-- **Documentation**: Code comments and structured organization
+- Core Sokoban mechanics implemented
+- UI and gameplay flow in place
+- Mobile-friendly structure established
+- Project is suitable for further expansion with more levels, polish, and monetization features
 
-## 🚦 Development Status
+## Future Improvements
 
-- ✅ Core gameplay implemented
-- ✅ UI and failure state management
-- ✅ Level system and grid visualization
-- ✅ Mobile integration ready
-- 🔄 Ongoing level design and polish
+- Add more levels and difficulty progression
+- Improve touch controls for mobile gameplay
+- Add sound effects and music
+- Add level selection and save system
+- Add win screen and level completion flow
+- Optimize for Android packaging and deployment
 
-## 📝 Contributing
+## License
 
-This is a personal project for portfolio demonstration. However, suggestions and feedback are welcome!
+This project is currently shared as an open portfolio project. If a license is added later, it will be documented here.
 
-For questions or suggestions:
-1. Open an issue on GitHub
-2. Describe the feature or improvement
-3. Include relevant context or examples
+## Acknowledgments
 
-## 📄 License
+- Unity Technologies
+- DOTween
+- TextMesh Pro
+- Google Mobile Ads
+- Community Unity tools and packages used in the project
 
-This project is open source. See LICENSE file for details (if applicable).
+## Portfolio Note
 
-## 🙏 Acknowledgments
-
-- Unity Engine and community
-- DOTween for animation framework
-- GoogleMobileAds SDK
-- More Mountains Tools library
-- TextMesh Pro for UI text rendering
+This project is a practical example of mobile game development in Unity, combining gameplay systems, polished UI, and production-oriented project structure. It reflects interest in game programming, logic design, and creating playable experiences for mobile platforms.
 
 ---
 
-**Portfolio Note**: This project showcases my ability to develop complete game systems with proper architecture, clean code practices, and professional polish. Feel free to explore the codebase and reach out with any questions!
+For internship or job applications, this repository can be presented as evidence of:
 
-**Contact**: [Your Contact Info]  
-**Portfolio**: [Your Portfolio Link]  
-**LinkedIn**: [Your LinkedIn]
+- game development capability
+- mobile-first thinking
+- use of Unity and C#
+- strong understanding of gameplay and UI systems
+- ability to build complete game experiences from concept to implementation

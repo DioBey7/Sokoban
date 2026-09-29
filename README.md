@@ -189,13 +189,3 @@ This project is currently shared as an open portfolio project. If a license is a
 ## Portfolio Note
 
 This project is a practical example of mobile game development in Unity, combining gameplay systems, polished UI, and production-oriented project structure. It reflects interest in game programming, logic design, and creating playable experiences for mobile platforms.
-
----
-
-For internship or job applications, this repository can be presented as evidence of:
-
-- game development capability
-- mobile-first thinking
-- use of Unity and C#
-- strong understanding of gameplay and UI systems
-- ability to build complete game experiences from concept to implementation
